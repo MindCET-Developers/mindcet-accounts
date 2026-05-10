@@ -25,6 +25,15 @@ function optionalValue(value?: string) {
   return value && value.length > 0 ? value : null;
 }
 
+function listValue(value?: string) {
+  return value
+    ? value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : [];
+}
+
 export async function updateService(serviceId: string, formData: FormData) {
   const parsed = serviceSchema.safeParse(Object.fromEntries(formData));
   const errorPath = `/services/${serviceId}/edit`;
@@ -45,20 +54,6 @@ export async function updateService(serviceId: string, formData: FormData) {
   }
 
   const values = parsed.data;
-  const tags = values.tags
-    ? values.tags
-        .split(",")
-        .map((tag) => tag.trim())
-        .filter(Boolean)
-    : [];
-
-  const invoiceKeywords = values.invoice_keywords
-    ? values.invoice_keywords
-        .split(",")
-        .map((keyword) => keyword.trim())
-        .filter(Boolean)
-    : [];
-
   const { error } = await supabase
     .from("services")
     .update({
@@ -70,8 +65,8 @@ export async function updateService(serviceId: string, formData: FormData) {
       cost_currency: values.cost_currency as CurrencyCode,
       next_renewal_date: optionalValue(values.next_renewal_date),
       status: values.status as ServiceStatus,
-      tags,
-      invoice_keywords: invoiceKeywords,
+      tags: listValue(values.tags),
+      invoice_keywords: listValue(values.invoice_keywords),
       notes: optionalValue(values.notes),
       paid_by_email: optionalValue(values.paid_by_email),
     })

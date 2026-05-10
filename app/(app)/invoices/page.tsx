@@ -79,8 +79,7 @@ export default async function InvoicesPage({
         </div>
       ) : (
         <div className="mb-4 rounded-[--radius] border border-[--color-accent-amber]/30 bg-[--color-accent-amber]/10 px-4 py-3 text-sm text-[--color-accent-amber]">
-          לא נמצא חשבון Gmail מחובר לסריקה. התחברות חדשה עם Google תשמור את
-          ההרשאה.
+          לא נמצא חשבון Gmail מחובר לסריקה. התחברות חדשה עם Google תשמור את ההרשאה.
         </div>
       )}
 
@@ -106,7 +105,7 @@ export default async function InvoicesPage({
           </div>
           <h2 className="text-lg font-medium mb-1">עדיין אין חשבוניות</h2>
           <p className="text-sm text-[--color-muted]">
-            סריקת Gmail תוסיף לכאן חשבוניות אוטומטית כשמזוהה סכום במייל.
+            סריקת Gmail תוסיף לכאן חשבוניות כשמזוהה סכום במייל.
           </p>
         </Card>
       ) : (
