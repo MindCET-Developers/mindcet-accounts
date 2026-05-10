@@ -53,25 +53,30 @@ export async function createStorageSignedUrl(
 }
 
 async function createStorageHeaders(supabase: SupabaseClient<Database>) {
-  const accessToken = await getUserAccessToken(supabase);
-  const apiKey = accessToken
-    ? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    : (process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const serverKey =
+    process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!apiKey) {
+  if (serverKey) {
+    const headers = new Headers({ apikey: serverKey });
+    if (isJwt(serverKey)) {
+      headers.set("Authorization", `Bearer ${serverKey}`);
+    }
+    return headers;
+  }
+
+  const accessToken = await getUserAccessToken(supabase);
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!accessToken || !anonKey) {
     throw new Error(
-      "Supabase Storage requires a signed-in user session or a server secret key.",
+      "Supabase Storage requires a server secret key or a signed-in user session.",
     );
   }
 
-  const headers = new Headers({ apikey: apiKey });
-  const authorizationToken = accessToken ?? (isJwt(apiKey) ? apiKey : null);
-
-  if (authorizationToken) {
-    headers.set("Authorization", `Bearer ${authorizationToken}`);
-  }
-
-  return headers;
+  return new Headers({
+    apikey: anonKey,
+    Authorization: `Bearer ${accessToken}`,
+  });
 }
 
 async function getUserAccessToken(supabase: SupabaseClient<Database>) {
