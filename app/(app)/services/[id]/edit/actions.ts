@@ -1,0 +1,79 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { z } from "zod";
+import { createClient } from "@/lib/supabase/server";
+import type { BillingCycle, CurrencyCode, ServiceStatus } from "@/lib/types";
+
+const serviceSchema = z.object({
+  name: z.string().trim().min(1, "שם השירות נדרש"),
+  vendor: z.string().trim().optional(),
+  website: z.string().trim().url("כתובת אתר לא תקינה").or(z.literal("")).optional(),
+  billing_cycle: z.enum(["monthly", "annual", "one_time"]),
+  cost_amount: z.coerce.number().min(0, "העלות חייבת להיות 0 או יותר"),
+  cost_currency: z.enum(["USD", "ILS", "EUR", "GBP"]),
+  next_renewal_date: z.string().optional(),
+  status: z.enum(["active", "paused", "cancelled"]),
+  tags: z.string().trim().optional(),
+  paid_by_email: z.string().trim().email("אימייל לא תקין").or(z.literal("")).optional(),
+  notes: z.string().trim().optional(),
+});
+
+function optionalValue(value?: string) {
+  return value && value.length > 0 ? value : null;
+}
+
+export async function updateService(serviceId: string, formData: FormData) {
+  const parsed = serviceSchema.safeParse(Object.fromEntries(formData));
+  const errorPath = `/services/${serviceId}/edit`;
+
+  if (!parsed.success) {
+    const message =
+      parsed.error.issues[0]?.message ?? "לא הצלחנו לעדכן את השירות";
+    redirect(`${errorPath}?error=${encodeURIComponent(message)}`);
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const values = parsed.data;
+  const tags = values.tags
+    ? values.tags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+    : [];
+
+  const { error } = await supabase
+    .from("services")
+    .update({
+      name: values.name,
+      vendor: optionalValue(values.vendor),
+      website: optionalValue(values.website),
+      billing_cycle: values.billing_cycle as BillingCycle,
+      cost_amount: values.cost_amount,
+      cost_currency: values.cost_currency as CurrencyCode,
+      next_renewal_date: optionalValue(values.next_renewal_date),
+      status: values.status as ServiceStatus,
+      tags,
+      notes: optionalValue(values.notes),
+      paid_by_email: optionalValue(values.paid_by_email),
+    })
+    .eq("id", serviceId);
+
+  if (error) {
+    redirect(`${errorPath}?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath("/");
+  revalidatePath("/services");
+  revalidatePath(errorPath);
+  redirect("/services");
+}
