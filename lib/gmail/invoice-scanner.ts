@@ -281,54 +281,57 @@ async function extractInvoice(
   const dateHeader = headerValue(headers, "Date");
   const bodyText = collectTextParts(message.payload);
   const searchableText = `${subject}\n${message.snippet ?? ""}\n${bodyText}`;
-  const amount = extractAmount(searchableText);
   const sourceEmailId = message.id;
 
   if (!sourceEmailId) {
     return null;
   }
 
-  if (amount) {
-    return {
-      sourceEmailId,
-      invoiceDate: normalizeDate(dateHeader, message.internalDate),
-      amount: amount.amount,
-      currency: amount.currency,
-      invoiceNumber: extractInvoiceNumber(searchableText),
-      vendorRaw: cleanSender(from),
-      searchableText: `${from ?? ""}\n${searchableText}`,
-    };
+  if (pdfImport.bytes) {
+    const pdfExtracted = await extractInvoiceFromPdf(pdfImport, {
+      subject,
+      from,
+      dateHeader,
+      internalDate: message.internalDate,
+      snippet: message.snippet,
+    });
+
+    if (pdfExtracted?.amount && pdfExtracted.currency) {
+      return {
+        sourceEmailId,
+        invoiceDate:
+          normalizeInvoiceDate(pdfExtracted.invoiceDate) ??
+          normalizeDate(dateHeader, message.internalDate),
+        amount: pdfExtracted.amount,
+        currency: pdfExtracted.currency,
+        invoiceNumber:
+          pdfExtracted.invoiceNumber ?? extractInvoiceNumber(searchableText),
+        vendorRaw: pdfExtracted.vendorRaw ?? cleanSender(from),
+        searchableText: [
+          from,
+          searchableText,
+          pdfExtracted.searchableText,
+          pdfExtracted.vendorRaw,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      };
+    }
   }
 
-  const pdfExtracted = await extractInvoiceFromPdf(pdfImport, {
-    subject,
-    from,
-    dateHeader,
-    internalDate: message.internalDate,
-    snippet: message.snippet,
-  });
-
-  if (!pdfExtracted?.amount || !pdfExtracted.currency) {
+  const amount = extractAmount(searchableText);
+  if (!amount) {
     return null;
   }
 
   return {
     sourceEmailId,
-    invoiceDate:
-      normalizeInvoiceDate(pdfExtracted.invoiceDate) ??
-      normalizeDate(dateHeader, message.internalDate),
-    amount: pdfExtracted.amount,
-    currency: pdfExtracted.currency,
-    invoiceNumber: pdfExtracted.invoiceNumber ?? extractInvoiceNumber(searchableText),
-    vendorRaw: pdfExtracted.vendorRaw ?? cleanSender(from),
-    searchableText: [
-      from,
-      searchableText,
-      pdfExtracted.searchableText,
-      pdfExtracted.vendorRaw,
-    ]
-      .filter(Boolean)
-      .join("\n"),
+    invoiceDate: normalizeDate(dateHeader, message.internalDate),
+    amount: amount.amount,
+    currency: amount.currency,
+    invoiceNumber: extractInvoiceNumber(searchableText),
+    vendorRaw: cleanSender(from),
+    searchableText: `${from ?? ""}\n${searchableText}`,
   };
 }
 
