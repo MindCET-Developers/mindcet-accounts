@@ -8,7 +8,7 @@ export async function uploadStorageObject(
   bytes: Buffer,
   contentType: string,
 ) {
-  const headers = await createStorageHeaders(supabase);
+  const { headers, mode, keyShape } = await createStorageHeaders(supabase);
   headers.set("cache-control", "max-age=3600");
   headers.set("content-type", contentType);
   headers.set("x-upsert", "true");
@@ -20,7 +20,9 @@ export async function uploadStorageObject(
   });
 
   if (!response.ok) {
-    throw new Error(await storageErrorMessage(response));
+    throw new Error(
+      `${await storageErrorMessage(response)} [auth=${mode} key=${keyShape}]`,
+    );
   }
 }
 
@@ -30,7 +32,7 @@ export async function createStorageSignedUrl(
   path: string,
   expiresIn: number,
 ) {
-  const headers = await createStorageHeaders(supabase);
+  const { headers } = await createStorageHeaders(supabase);
   headers.set("content-type", "application/json");
 
   const response = await fetch(`${storageBaseUrl()}/object/sign/${objectPath(bucket, path)}`, {
@@ -58,10 +60,14 @@ async function createStorageHeaders(supabase: SupabaseClient<Database>) {
   )?.trim();
 
   if (serverKey) {
-    return new Headers({
-      apikey: serverKey,
-      Authorization: `Bearer ${serverKey}`,
-    });
+    return {
+      headers: new Headers({
+        apikey: serverKey,
+        Authorization: `Bearer ${serverKey}`,
+      }),
+      mode: process.env.SUPABASE_SECRET_KEY ? "secret-key" : "service-role",
+      keyShape: describeKey(serverKey),
+    };
   }
 
   const accessToken = await getUserAccessToken(supabase);
@@ -73,10 +79,22 @@ async function createStorageHeaders(supabase: SupabaseClient<Database>) {
     );
   }
 
-  return new Headers({
-    apikey: anonKey,
-    Authorization: `Bearer ${accessToken}`,
-  });
+  return {
+    headers: new Headers({
+      apikey: anonKey,
+      Authorization: `Bearer ${accessToken}`,
+    }),
+    mode: "user-session",
+    keyShape: describeKey(accessToken),
+  };
+}
+
+function describeKey(value: string) {
+  const parts = value.split(".").length;
+  if (value.startsWith("sb_secret_")) return "sb_secret";
+  if (value.startsWith("sb_publishable_")) return "sb_publishable";
+  if (parts === 3) return `jwt(len=${value.length})`;
+  return `unknown(len=${value.length},parts=${parts})`;
 }
 
 async function getUserAccessToken(supabase: SupabaseClient<Database>) {
