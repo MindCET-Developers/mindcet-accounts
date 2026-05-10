@@ -3,11 +3,11 @@ import { getCanonicalAppOrigin } from "@/lib/app-origin";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/";
   const error = searchParams.get("error");
-  const appOrigin = getCanonicalAppOrigin(origin);
+  const appOrigin = getCanonicalAppOrigin();
 
   if (error) {
     return NextResponse.redirect(`${appOrigin}/login?error=${encodeURIComponent(error)}`);

@@ -22,7 +22,7 @@ export function SignInWithGoogle() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${getCanonicalAppOrigin(window.location.origin)}/auth/callback`,
+        redirectTo: `${getCanonicalAppOrigin()}/auth/callback`,
         scopes: GOOGLE_SCOPES,
         queryParams: {
           access_type: "offline",
