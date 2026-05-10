@@ -115,6 +115,7 @@ create table public.services (
   next_renewal_date   date,
   status              service_status not null default 'active',
   tags                text[] not null default '{}',
+  invoice_keywords    text[] not null default '{}',
   notes               text,
   paid_by_email       text,
   created_at          timestamptz not null default now(),

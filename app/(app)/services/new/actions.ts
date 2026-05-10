@@ -34,6 +34,17 @@ function listValue(value?: string) {
     : [];
 }
 
+function serviceSaveError(error: { code?: string; message: string }) {
+  if (
+    error.code === "42703" &&
+    error.message.includes("invoice_keywords")
+  ) {
+    return "Database is missing services.invoice_keywords. Run db/migrations/0002_invoice_scan_improvements.sql in Supabase, then try again.";
+  }
+
+  return error.message;
+}
+
 export async function createService(formData: FormData) {
   const parsed = serviceSchema.safeParse(Object.fromEntries(formData));
 
@@ -83,7 +94,7 @@ export async function createService(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/services/new?error=${encodeURIComponent(error.message)}`);
+    redirect(`/services/new?error=${encodeURIComponent(serviceSaveError(error))}`);
   }
 
   revalidatePath("/");

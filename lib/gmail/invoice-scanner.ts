@@ -1,9 +1,10 @@
 import { google, gmail_v1 } from "googleapis";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database, Service } from "@/lib/types";
 
 const INVOICE_QUERY =
-  'newer_than:180d (invoice OR receipt OR "payment received" OR "tax invoice" OR attachment:pdf)';
+  'newer_than:180d (invoice OR receipt OR "payment received" OR "tax invoice" OR חשבונית OR קבלה OR filename:pdf)';
 const INVOICE_PDF_BUCKET = "invoice-pdfs";
 
 type EmailAccountRow = Database["public"]["Tables"]["email_accounts"]["Row"];
@@ -28,8 +29,9 @@ interface ExtractedInvoice {
 }
 
 interface PdfAttachment {
-  attachmentId: string;
+  attachmentId: string | null;
   filename: string;
+  data: string | null;
 }
 
 export async function scanConnectedEmailAccounts(
@@ -68,14 +70,11 @@ export async function scanConnectedEmailAccounts(
     }
 
     try {
-      const accountResult = await scanAccount(
-        supabase,
-        account,
-        services ?? [],
-      );
+      const accountResult = await scanAccount(supabase, account, services ?? []);
       result.scannedMessages += accountResult.scannedMessages;
       result.insertedInvoices += accountResult.insertedInvoices;
       result.skippedMessages += accountResult.skippedMessages;
+      result.errors.push(...accountResult.errors);
     } catch (error) {
       result.errors.push(
         error instanceof Error
@@ -109,6 +108,7 @@ async function scanAccount(
   let scannedMessages = 0;
   let insertedInvoices = 0;
   let skippedMessages = 0;
+  const errors: string[] = [];
 
   for (const message of list.data.messages ?? []) {
     if (!message.id) {
@@ -130,14 +130,25 @@ async function scanAccount(
       continue;
     }
 
-    const pdfStoragePath = await uploadFirstPdfAttachment(
-      supabase,
-      gmail,
-      account,
-      message.id,
-      fullMessage.data,
+    let pdfStoragePath: string | null = null;
+    try {
+      pdfStoragePath = await uploadFirstPdfAttachment(
+        gmail,
+        account,
+        message.id,
+        fullMessage.data,
+      );
+    } catch (error) {
+      errors.push(
+        error instanceof Error
+          ? `${account.email}: PDF upload failed for message ${message.id}: ${error.message}`
+          : `${account.email}: PDF upload failed for message ${message.id}`,
+      );
+    }
+    const workspaceServices = services.filter(
+      (service) => service.workspace_id === account.workspace_id,
     );
-    const matchedServiceId = findMatchingServiceId(extracted, services);
+    const matchedServiceId = findMatchingServiceId(extracted, workspaceServices);
     const invoice: InvoiceInsert = {
       workspace_id: account.workspace_id,
       service_id: matchedServiceId,
@@ -170,7 +181,7 @@ async function scanAccount(
     .update({ last_scan_at: new Date().toISOString() })
     .eq("id", account.id);
 
-  return { scannedMessages, insertedInvoices, skippedMessages };
+  return { scannedMessages, insertedInvoices, skippedMessages, errors };
 }
 
 function extractInvoice(message: gmail_v1.Schema$Message): ExtractedInvoice | null {
@@ -198,7 +209,6 @@ function extractInvoice(message: gmail_v1.Schema$Message): ExtractedInvoice | nu
 }
 
 async function uploadFirstPdfAttachment(
-  supabase: SupabaseClient<Database>,
   gmail: gmail_v1.Gmail,
   account: EmailAccountRow,
   messageId: string,
@@ -207,25 +217,43 @@ async function uploadFirstPdfAttachment(
   const pdf = findPdfAttachments(message.payload)[0];
   if (!pdf) return null;
 
-  const attachment = await gmail.users.messages.attachments.get({
-    userId: "me",
-    messageId,
-    id: pdf.attachmentId,
-  });
-  const data = attachment.data.data;
+  const data = pdf.data ?? (await downloadAttachment(gmail, messageId, pdf));
   if (!data) return null;
 
   const bytes = base64UrlToBytes(data);
   const safeName = sanitizeFileName(pdf.filename || `${messageId}.pdf`);
   const storagePath = `${account.workspace_id}/${account.id}/${messageId}/${safeName}`;
-  const { error } = await supabase.storage
+  const storageClient = createAdminClient().storage;
+
+  await ensureInvoicePdfBucket(storageClient);
+
+  const { error } = await storageClient
     .from(INVOICE_PDF_BUCKET)
     .upload(storagePath, bytes, {
       contentType: "application/pdf",
       upsert: true,
     });
 
-  return error ? null : storagePath;
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return storagePath;
+}
+
+async function ensureInvoicePdfBucket(
+  storage: ReturnType<typeof createAdminClient>["storage"],
+) {
+  const { error } = await storage.getBucket(INVOICE_PDF_BUCKET);
+  if (!error) return;
+
+  const { error: createError } = await storage.createBucket(INVOICE_PDF_BUCKET, {
+    public: false,
+  });
+
+  if (createError && !createError.message.toLowerCase().includes("already exists")) {
+    throw new Error(createError.message);
+  }
 }
 
 function findPdfAttachments(part?: gmail_v1.Schema$MessagePart): PdfAttachment[] {
@@ -234,14 +262,36 @@ function findPdfAttachments(part?: gmail_v1.Schema$MessagePart): PdfAttachment[]
   const current =
     (part.mimeType === "application/pdf" ||
       part.filename?.toLowerCase().endsWith(".pdf")) &&
-    part.body?.attachmentId
-      ? [{ attachmentId: part.body.attachmentId, filename: part.filename ?? "" }]
+    (part.body?.attachmentId || part.body?.data)
+      ? [
+          {
+            attachmentId: part.body.attachmentId ?? null,
+            filename: part.filename ?? "",
+            data: part.body.data ?? null,
+          },
+        ]
       : [];
 
   return [
     ...current,
     ...(part.parts ?? []).flatMap((child) => findPdfAttachments(child)),
   ];
+}
+
+async function downloadAttachment(
+  gmail: gmail_v1.Gmail,
+  messageId: string,
+  pdf: PdfAttachment,
+) {
+  if (!pdf.attachmentId) return null;
+
+  const attachment = await gmail.users.messages.attachments.get({
+    userId: "me",
+    messageId,
+    id: pdf.attachmentId,
+  });
+
+  return attachment.data.data ?? null;
 }
 
 function collectTextParts(part?: gmail_v1.Schema$MessagePart): string {
@@ -320,20 +370,26 @@ function findMatchingServiceId(invoice: ExtractedInvoice, services: Service[]) {
   const searchable = normalize(`${invoice.vendorRaw ?? ""}\n${invoice.searchableText}`);
 
   const keywordMatch = services.find((service) =>
-    (service.invoice_keywords ?? []).some((keyword) =>
-      keyword.length > 0 && searchable.includes(normalize(keyword)),
-    ),
+    normalizedKeywords(service).some((keyword) => searchable.includes(keyword)),
   );
   if (keywordMatch) return keywordMatch.id;
 
-  const service = services.find((item) => {
-    const names = [item.name, item.vendor].filter(Boolean).map((value) =>
-      normalize(value!),
-    );
-    return names.some((name) => name && searchable.includes(name));
-  });
+  const service = services
+    .filter((item) => normalizedKeywords(item).length === 0)
+    .find((item) => {
+      const names = [item.name, item.vendor].filter(Boolean).map((value) =>
+        normalize(value!),
+      );
+      return names.some((name) => name && searchable.includes(name));
+    });
 
   return service?.id ?? null;
+}
+
+function normalizedKeywords(service: Service) {
+  return (service.invoice_keywords ?? [])
+    .map((keyword) => normalize(keyword))
+    .filter(Boolean);
 }
 
 function normalize(value: string) {
