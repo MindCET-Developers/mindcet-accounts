@@ -51,6 +51,7 @@ export interface Service {
   next_renewal_date: string | null;
   status: ServiceStatus;
   tags: string[];
+  invoice_keywords: string[];
   notes: string | null;
   paid_by_email: string | null;
   created_at: string;

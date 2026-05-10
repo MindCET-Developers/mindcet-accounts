@@ -40,10 +40,10 @@ export default async function NewServicePage({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Field label="שם השירות" required>
-              <input name="name" required className="input" placeholder="Canva" />
+              <input name="name" required className="input" placeholder="Bubble - EXSELI" />
             </Field>
             <Field label="ספק">
-              <input name="vendor" className="input" placeholder="Canva Pty Ltd" />
+              <input name="vendor" className="input" placeholder="Bubble" />
             </Field>
           </div>
 
@@ -52,7 +52,7 @@ export default async function NewServicePage({
               name="website"
               type="url"
               className="input"
-              placeholder="https://www.canva.com"
+              placeholder="https://bubble.io"
             />
           </Field>
 
@@ -65,7 +65,7 @@ export default async function NewServicePage({
                 step="0.01"
                 required
                 className="input"
-                placeholder="120"
+                placeholder="42.70"
               />
             </Field>
             <Field label="מטבע">
@@ -77,7 +77,7 @@ export default async function NewServicePage({
               </select>
             </Field>
             <Field label="מחזור חיוב">
-              <select name="billing_cycle" className="input" defaultValue="annual">
+              <select name="billing_cycle" className="input" defaultValue="monthly">
                 <option value="monthly">חודשי</option>
                 <option value="annual">שנתי</option>
                 <option value="one_time">חד פעמי</option>
@@ -99,10 +99,14 @@ export default async function NewServicePage({
           </div>
 
           <Field label="תגיות">
+            <input name="tags" className="input" placeholder="פיתוח, מוצר, nonprofit" />
+          </Field>
+
+          <Field label="מילות מפתח לזיהוי חשבוניות">
             <input
-              name="tags"
+              name="invoice_keywords"
               className="input"
-              placeholder="עיצוב, שיווק, nonprofit"
+              placeholder="שם מוצר, שם אפליקציה בבאבל, project id..."
             />
           </Field>
 

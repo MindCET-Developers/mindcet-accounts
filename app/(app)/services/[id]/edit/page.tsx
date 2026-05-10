@@ -57,19 +57,10 @@ export default async function EditServicePage({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Field label="שם השירות" required>
-              <input
-                name="name"
-                required
-                className="input"
-                defaultValue={service.name}
-              />
+              <input name="name" required className="input" defaultValue={service.name} />
             </Field>
             <Field label="ספק">
-              <input
-                name="vendor"
-                className="input"
-                defaultValue={service.vendor ?? ""}
-              />
+              <input name="vendor" className="input" defaultValue={service.vendor ?? ""} />
             </Field>
           </div>
 
@@ -95,11 +86,7 @@ export default async function EditServicePage({
               />
             </Field>
             <Field label="מטבע">
-              <select
-                name="cost_currency"
-                className="input"
-                defaultValue={service.cost_currency}
-              >
+              <select name="cost_currency" className="input" defaultValue={service.cost_currency}>
                 <option value="USD">USD</option>
                 <option value="ILS">ILS</option>
                 <option value="EUR">EUR</option>
@@ -107,11 +94,7 @@ export default async function EditServicePage({
               </select>
             </Field>
             <Field label="מחזור חיוב">
-              <select
-                name="billing_cycle"
-                className="input"
-                defaultValue={service.billing_cycle}
-              >
+              <select name="billing_cycle" className="input" defaultValue={service.billing_cycle}>
                 <option value="monthly">חודשי</option>
                 <option value="annual">שנתי</option>
                 <option value="one_time">חד פעמי</option>
@@ -129,11 +112,7 @@ export default async function EditServicePage({
               />
             </Field>
             <Field label="סטטוס">
-              <select
-                name="status"
-                className="input"
-                defaultValue={service.status}
-              >
+              <select name="status" className="input" defaultValue={service.status}>
                 <option value="active">פעיל</option>
                 <option value="paused">מושהה</option>
                 <option value="cancelled">בוטל</option>
@@ -142,10 +121,14 @@ export default async function EditServicePage({
           </div>
 
           <Field label="תגיות">
+            <input name="tags" className="input" defaultValue={service.tags.join(", ")} />
+          </Field>
+
+          <Field label="מילות מפתח לזיהוי חשבוניות">
             <input
-              name="tags"
+              name="invoice_keywords"
               className="input"
-              defaultValue={service.tags.join(", ")}
+              defaultValue={(service.invoice_keywords ?? []).join(", ")}
             />
           </Field>
 

@@ -16,6 +16,7 @@ const serviceSchema = z.object({
   next_renewal_date: z.string().optional(),
   status: z.enum(["active", "paused", "cancelled"]),
   tags: z.string().trim().optional(),
+  invoice_keywords: z.string().trim().optional(),
   paid_by_email: z.string().trim().email("אימייל לא תקין").or(z.literal("")).optional(),
   notes: z.string().trim().optional(),
 });
@@ -62,6 +63,13 @@ export async function createService(formData: FormData) {
         .filter(Boolean)
     : [];
 
+  const invoiceKeywords = values.invoice_keywords
+    ? values.invoice_keywords
+        .split(",")
+        .map((keyword) => keyword.trim())
+        .filter(Boolean)
+    : [];
+
   const { error } = await supabase.from("services").insert({
     workspace_id: profile.workspace_id,
     name: values.name,
@@ -74,6 +82,7 @@ export async function createService(formData: FormData) {
     next_renewal_date: optionalValue(values.next_renewal_date),
     status: values.status as ServiceStatus,
     tags,
+    invoice_keywords: invoiceKeywords,
     notes: optionalValue(values.notes),
     paid_by_email: optionalValue(values.paid_by_email),
   });

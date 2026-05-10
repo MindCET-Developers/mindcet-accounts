@@ -42,6 +42,19 @@ export default async function InvoicesPage({
     .returns<InvoiceWithService[]>();
 
   const all = invoices ?? [];
+  const signedPdfUrls = new Map(
+    await Promise.all(
+      all
+        .filter((invoice) => invoice.pdf_storage_path)
+        .map(async (invoice) => {
+          const { data } = await supabase.storage
+            .from("invoice-pdfs")
+            .createSignedUrl(invoice.pdf_storage_path!, 60 * 10);
+
+          return [invoice.id, data?.signedUrl ?? null] as const;
+        }),
+    ),
+  );
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -127,9 +140,9 @@ export default async function InvoicesPage({
                       <StatusBadge status={invoice.status} />
                     </td>
                     <td className="px-5 py-4">
-                      {invoice.pdf_storage_path ? (
+                      {signedPdfUrls.get(invoice.id) ? (
                         <Link
-                          href={invoice.pdf_storage_path}
+                          href={signedPdfUrls.get(invoice.id)!}
                           className="inline-flex items-center gap-1 text-[--color-brand-400] hover:text-[--color-brand-300]"
                         >
                           <Link2 className="size-3.5" />
