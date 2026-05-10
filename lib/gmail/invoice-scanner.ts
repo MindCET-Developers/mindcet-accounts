@@ -1,11 +1,12 @@
+import Anthropic from "@anthropic-ai/sdk";
 import { google, gmail_v1 } from "googleapis";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database, Service } from "@/lib/types";
 
 const INVOICE_QUERY =
   'newer_than:180d (invoice OR receipt OR "payment received" OR "tax invoice" OR חשבונית OR קבלה OR filename:pdf)';
 const INVOICE_PDF_BUCKET = "invoice-pdfs";
+const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5";
 
 type EmailAccountRow = Database["public"]["Tables"]["email_accounts"]["Row"];
 type InvoiceInsert = Database["public"]["Tables"]["invoices"]["Insert"];
@@ -34,6 +35,21 @@ interface PdfAttachment {
   data: string | null;
 }
 
+interface PdfImport {
+  storagePath: string | null;
+  bytes: Buffer | null;
+  filename: string | null;
+}
+
+interface PdfExtractedInvoice {
+  invoiceDate?: string | null;
+  amount?: number | null;
+  currency?: "USD" | "ILS" | "EUR" | "GBP" | null;
+  invoiceNumber?: string | null;
+  vendorRaw?: string | null;
+  searchableText?: string | null;
+}
+
 export async function scanConnectedEmailAccounts(
   supabase: SupabaseClient<Database>,
   userId: string,
@@ -60,6 +76,61 @@ export async function scanConnectedEmailAccounts(
     .from("services")
     .select("*")
     .eq("status", "active");
+
+  for (const account of accounts ?? []) {
+    result.scannedAccounts += 1;
+
+    if (!account.provider_refresh_token) {
+      result.errors.push(`Missing Google refresh token for ${account.email}`);
+      continue;
+    }
+
+    try {
+      const accountResult = await scanAccount(supabase, account, services ?? []);
+      result.scannedMessages += accountResult.scannedMessages;
+      result.insertedInvoices += accountResult.insertedInvoices;
+      result.skippedMessages += accountResult.skippedMessages;
+      result.errors.push(...accountResult.errors);
+    } catch (error) {
+      result.errors.push(
+        error instanceof Error
+          ? `${account.email}: ${error.message}`
+          : `${account.email}: Unknown scan error`,
+      );
+    }
+  }
+
+  return result;
+}
+
+export async function scanAllConnectedEmailAccounts(
+  supabase: SupabaseClient<Database>,
+): Promise<ScanResult> {
+  const result: ScanResult = {
+    scannedAccounts: 0,
+    scannedMessages: 0,
+    insertedInvoices: 0,
+    skippedMessages: 0,
+    errors: [],
+  };
+
+  const { data: accounts, error: accountsError } = await supabase
+    .from("email_accounts")
+    .select("*")
+    .eq("scan_enabled", true);
+
+  if (accountsError) {
+    return { ...result, errors: [accountsError.message] };
+  }
+
+  const { data: services, error: servicesError } = await supabase
+    .from("services")
+    .select("*")
+    .eq("status", "active");
+
+  if (servicesError) {
+    return { ...result, errors: [servicesError.message] };
+  }
 
   for (const account of accounts ?? []) {
     result.scannedAccounts += 1;
@@ -123,16 +194,14 @@ async function scanAccount(
     });
 
     scannedMessages += 1;
-    const extracted = extractInvoice(fullMessage.data);
-
-    if (!extracted) {
-      skippedMessages += 1;
-      continue;
-    }
-
-    let pdfStoragePath: string | null = null;
+    let pdfImport: PdfImport = {
+      storagePath: null,
+      bytes: null,
+      filename: null,
+    };
     try {
-      pdfStoragePath = await uploadFirstPdfAttachment(
+      pdfImport = await importFirstPdfAttachment(
+        supabase,
         gmail,
         account,
         message.id,
@@ -145,6 +214,23 @@ async function scanAccount(
           : `${account.email}: PDF upload failed for message ${message.id}`,
       );
     }
+
+    let extracted: ExtractedInvoice | null = null;
+    try {
+      extracted = await extractInvoice(fullMessage.data, pdfImport);
+    } catch (error) {
+      errors.push(
+        error instanceof Error
+          ? `${account.email}: PDF extraction failed for message ${message.id}: ${error.message}`
+          : `${account.email}: PDF extraction failed for message ${message.id}`,
+      );
+    }
+
+    if (!extracted) {
+      skippedMessages += 1;
+      continue;
+    }
+
     const workspaceServices = services.filter(
       (service) => service.workspace_id === account.workspace_id,
     );
@@ -156,7 +242,7 @@ async function scanAccount(
       amount: extracted.amount,
       currency: extracted.currency,
       invoice_number: extracted.invoiceNumber,
-      pdf_storage_path: pdfStoragePath,
+      pdf_storage_path: pdfImport.storagePath,
       source_email_id: extracted.sourceEmailId,
       source_email_account_id: account.id,
       vendor_raw: extracted.vendorRaw,
@@ -184,7 +270,10 @@ async function scanAccount(
   return { scannedMessages, insertedInvoices, skippedMessages, errors };
 }
 
-function extractInvoice(message: gmail_v1.Schema$Message): ExtractedInvoice | null {
+async function extractInvoice(
+  message: gmail_v1.Schema$Message,
+  pdfImport: PdfImport,
+): Promise<ExtractedInvoice | null> {
   const headers = message.payload?.headers ?? [];
   const subject = headerValue(headers, "Subject") ?? "";
   const from = headerValue(headers, "From");
@@ -192,42 +281,74 @@ function extractInvoice(message: gmail_v1.Schema$Message): ExtractedInvoice | nu
   const bodyText = collectTextParts(message.payload);
   const searchableText = `${subject}\n${message.snippet ?? ""}\n${bodyText}`;
   const amount = extractAmount(searchableText);
+  const sourceEmailId = message.id;
 
-  if (!message.id || !amount) {
+  if (!sourceEmailId) {
+    return null;
+  }
+
+  if (amount) {
+    return {
+      sourceEmailId,
+      invoiceDate: normalizeDate(dateHeader, message.internalDate),
+      amount: amount.amount,
+      currency: amount.currency,
+      invoiceNumber: extractInvoiceNumber(searchableText),
+      vendorRaw: cleanSender(from),
+      searchableText: `${from ?? ""}\n${searchableText}`,
+    };
+  }
+
+  const pdfExtracted = await extractInvoiceFromPdf(pdfImport, {
+    subject,
+    from,
+    dateHeader,
+    internalDate: message.internalDate,
+    snippet: message.snippet,
+  });
+
+  if (!pdfExtracted?.amount || !pdfExtracted.currency) {
     return null;
   }
 
   return {
-    sourceEmailId: message.id,
-    invoiceDate: normalizeDate(dateHeader, message.internalDate),
-    amount: amount.amount,
-    currency: amount.currency,
-    invoiceNumber: extractInvoiceNumber(searchableText),
-    vendorRaw: cleanSender(from),
-    searchableText: `${from ?? ""}\n${searchableText}`,
+    sourceEmailId,
+    invoiceDate:
+      normalizeInvoiceDate(pdfExtracted.invoiceDate) ??
+      normalizeDate(dateHeader, message.internalDate),
+    amount: pdfExtracted.amount,
+    currency: pdfExtracted.currency,
+    invoiceNumber: pdfExtracted.invoiceNumber ?? extractInvoiceNumber(searchableText),
+    vendorRaw: pdfExtracted.vendorRaw ?? cleanSender(from),
+    searchableText: [
+      from,
+      searchableText,
+      pdfExtracted.searchableText,
+      pdfExtracted.vendorRaw,
+    ]
+      .filter(Boolean)
+      .join("\n"),
   };
 }
 
-async function uploadFirstPdfAttachment(
+async function importFirstPdfAttachment(
+  supabase: SupabaseClient<Database>,
   gmail: gmail_v1.Gmail,
   account: EmailAccountRow,
   messageId: string,
   message: gmail_v1.Schema$Message,
-) {
+): Promise<PdfImport> {
   const pdf = findPdfAttachments(message.payload)[0];
-  if (!pdf) return null;
+  if (!pdf) return { storagePath: null, bytes: null, filename: null };
 
   const data = pdf.data ?? (await downloadAttachment(gmail, messageId, pdf));
-  if (!data) return null;
+  if (!data) return { storagePath: null, bytes: null, filename: pdf.filename || null };
 
   const bytes = base64UrlToBytes(data);
   const safeName = sanitizeFileName(pdf.filename || `${messageId}.pdf`);
   const storagePath = `${account.workspace_id}/${account.id}/${messageId}/${safeName}`;
-  const storageClient = createAdminClient().storage;
 
-  await ensureInvoicePdfBucket(storageClient);
-
-  const { error } = await storageClient
+  const { error } = await supabase.storage
     .from(INVOICE_PDF_BUCKET)
     .upload(storagePath, bytes, {
       contentType: "application/pdf",
@@ -238,22 +359,117 @@ async function uploadFirstPdfAttachment(
     throw new Error(error.message);
   }
 
-  return storagePath;
+  return { storagePath, bytes, filename: safeName };
 }
 
-async function ensureInvoicePdfBucket(
-  storage: ReturnType<typeof createAdminClient>["storage"],
-) {
-  const { error } = await storage.getBucket(INVOICE_PDF_BUCKET);
-  if (!error) return;
+async function extractInvoiceFromPdf(
+  pdfImport: PdfImport,
+  email: {
+    subject: string;
+    from?: string | null;
+    dateHeader?: string | null;
+    internalDate?: string | null;
+    snippet?: string | null;
+  },
+): Promise<PdfExtractedInvoice | null> {
+  if (!pdfImport.bytes || !process.env.ANTHROPIC_API_KEY) {
+    return null;
+  }
 
-  const { error: createError } = await storage.createBucket(INVOICE_PDF_BUCKET, {
-    public: false,
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const message = await client.messages.create({
+    model: ANTHROPIC_MODEL,
+    max_tokens: 600,
+    output_config: {
+      format: {
+        type: "json_schema",
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            invoiceDate: { type: ["string", "null"] },
+            amount: { type: ["number", "null"] },
+            currency: {
+              type: ["string", "null"],
+              enum: ["USD", "ILS", "EUR", "GBP", null],
+            },
+            invoiceNumber: { type: ["string", "null"] },
+            vendorRaw: { type: ["string", "null"] },
+            searchableText: { type: ["string", "null"] },
+          },
+          required: [
+            "invoiceDate",
+            "amount",
+            "currency",
+            "invoiceNumber",
+            "vendorRaw",
+            "searchableText",
+          ],
+        },
+      },
+    },
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "document",
+            title: pdfImport.filename ?? "invoice.pdf",
+            source: {
+              type: "base64",
+              media_type: "application/pdf",
+              data: pdfImport.bytes.toString("base64"),
+            },
+          },
+          {
+            type: "text",
+            text: [
+              "Extract invoice data from this PDF attachment.",
+              "Return only fields matching the JSON schema.",
+              "Use ISO date YYYY-MM-DD when a date exists.",
+              "Use one of USD, ILS, EUR, GBP for currency.",
+              "If total amount is unavailable, set amount to null.",
+              "",
+              `Email subject: ${email.subject}`,
+              `Email from: ${email.from ?? ""}`,
+              `Email date: ${email.dateHeader ?? email.internalDate ?? ""}`,
+              `Email snippet: ${email.snippet ?? ""}`,
+            ].join("\n"),
+          },
+        ],
+      },
+    ],
   });
 
-  if (createError && !createError.message.toLowerCase().includes("already exists")) {
-    throw new Error(createError.message);
+  const text = message.content
+    .filter((block) => block.type === "text")
+    .map((block) => block.text)
+    .join("\n");
+
+  return parsePdfExtraction(text);
+}
+
+function parsePdfExtraction(value: string): PdfExtractedInvoice | null {
+  try {
+    const parsed = JSON.parse(value) as PdfExtractedInvoice;
+    if (
+      parsed.currency &&
+      !["USD", "ILS", "EUR", "GBP"].includes(parsed.currency)
+    ) {
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    return null;
   }
+}
+
+function normalizeInvoiceDate(value?: string | null) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString().slice(0, 10);
 }
 
 function findPdfAttachments(part?: gmail_v1.Schema$MessagePart): PdfAttachment[] {

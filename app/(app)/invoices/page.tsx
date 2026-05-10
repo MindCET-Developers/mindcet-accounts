@@ -2,7 +2,6 @@ import { FileText, Link2 } from "lucide-react";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { ScanInvoicesButton } from "@/components/invoices/ScanInvoicesButton";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { Invoice } from "@/lib/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -11,6 +10,8 @@ import { scanInvoices } from "./actions";
 type InvoiceWithService = Invoice & {
   services: { name: string } | null;
 };
+
+export const maxDuration = 60;
 
 export default async function InvoicesPage({
   searchParams,
@@ -43,13 +44,12 @@ export default async function InvoicesPage({
     .returns<InvoiceWithService[]>();
 
   const all = invoices ?? [];
-  const adminSupabase = createAdminClient();
   const signedPdfUrls = new Map(
     await Promise.all(
       all
         .filter((invoice) => invoice.pdf_storage_path)
         .map(async (invoice) => {
-          const { data } = await adminSupabase.storage
+          const { data } = await supabase.storage
             .from("invoice-pdfs")
             .createSignedUrl(invoice.pdf_storage_path!, 60 * 10);
 
