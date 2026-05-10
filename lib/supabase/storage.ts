@@ -8,21 +8,28 @@ export async function uploadStorageObject(
   bytes: Buffer,
   contentType: string,
 ) {
-  const { headers, mode, keyShape } = await createStorageHeaders(supabase);
-  headers.set("cache-control", "max-age=3600");
-  headers.set("content-type", contentType);
-  headers.set("x-upsert", "true");
+  let mode = "unknown";
+  let keyShape = "unknown";
+  try {
+    const built = await createStorageHeaders(supabase);
+    mode = built.mode;
+    keyShape = built.keyShape;
+    built.headers.set("cache-control", "max-age=3600");
+    built.headers.set("content-type", contentType);
+    built.headers.set("x-upsert", "true");
 
-  const response = await fetch(storageObjectUrl(bucket, path), {
-    method: "POST",
-    headers,
-    body: new Blob([new Uint8Array(bytes)], { type: contentType }),
-  });
+    const response = await fetch(storageObjectUrl(bucket, path), {
+      method: "POST",
+      headers: built.headers,
+      body: new Blob([new Uint8Array(bytes)], { type: contentType }),
+    });
 
-  if (!response.ok) {
-    throw new Error(
-      `${await storageErrorMessage(response)} [auth=${mode} key=${keyShape}]`,
-    );
+    if (!response.ok) {
+      throw new Error(await storageErrorMessage(response));
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`${message} [auth=${mode} key=${keyShape}]`);
   }
 }
 
