@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthenticatedServiceCatalog } from "@/lib/services/shared-catalog";
 import type { BillingCycle, CurrencyCode, ServiceStatus } from "@/lib/types";
 
 const serviceSchema = z.object({
@@ -55,14 +55,7 @@ export async function updateService(serviceId: string, formData: FormData) {
     redirect(`${errorPath}?error=${encodeURIComponent(message)}`);
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
+  const { supabase } = await getAuthenticatedServiceCatalog();
 
   const values = parsed.data;
   const { error } = await supabase

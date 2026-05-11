@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ServicesBulkList } from "@/components/services/ServicesBulkList";
+import { getAuthenticatedServiceCatalog } from "@/lib/services/shared-catalog";
 
 export default async function ServicesPage({
   searchParams,
@@ -11,7 +11,7 @@ export default async function ServicesPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
-  const supabase = await createClient();
+  const { supabase } = await getAuthenticatedServiceCatalog();
   const { data: services } = await supabase
     .from("services")
     .select("*")

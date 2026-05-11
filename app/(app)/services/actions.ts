@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthenticatedServiceCatalog } from "@/lib/services/shared-catalog";
 
 const bulkDeleteSchema = z.object({
   serviceIds: z.array(z.string().uuid()).min(1),
@@ -20,14 +20,7 @@ export async function deleteSelectedServices(formData: FormData) {
     );
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
+  const { supabase } = await getAuthenticatedServiceCatalog();
 
   const { error } = await supabase
     .from("services")

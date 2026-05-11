@@ -3,7 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import {
+  getAuthenticatedServiceCatalog,
+  getSharedWorkspaceId,
+} from "@/lib/services/shared-catalog";
 import type { BillingCycle, CurrencyCode, ServiceStatus } from "@/lib/types";
 
 const serviceSchema = z.object({
@@ -54,30 +57,11 @@ export async function createService(formData: FormData) {
     redirect(`/services/new?error=${encodeURIComponent(message)}`);
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("workspace_id")
-    .eq("id", user.id)
-    .single();
-
-  if (profileError || !profile) {
-    redirect(
-      `/services/new?error=${encodeURIComponent("לא נמצא workspace למשתמש")}`,
-    );
-  }
-
+  const { supabase } = await getAuthenticatedServiceCatalog();
+  const workspaceId = await getSharedWorkspaceId();
   const values = parsed.data;
   const { error } = await supabase.from("services").insert({
-    workspace_id: profile.workspace_id,
+    workspace_id: workspaceId,
     name: values.name,
     vendor: optionalValue(values.vendor),
     website: optionalValue(values.website),

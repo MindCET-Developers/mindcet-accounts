@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { ArrowUpRight, Calendar, DollarSign, Layers, Sparkles } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { formatCurrency, formatDate, daysUntil } from "@/lib/utils";
+import { getAuthenticatedServiceCatalog } from "@/lib/services/shared-catalog";
 
 function annualize(amount: number, cycle: string) {
   if (cycle === "annual") return amount;
@@ -12,7 +12,7 @@ function annualize(amount: number, cycle: string) {
 }
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
+  const { supabase } = await getAuthenticatedServiceCatalog();
   const { data: services } = await supabase.from("services").select("*").eq("status", "active");
   const all = services ?? [];
 

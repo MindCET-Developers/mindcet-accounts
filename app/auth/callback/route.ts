@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getCanonicalAppOrigin } from "@/lib/app-origin";
+import { getSharedWorkspaceId } from "@/lib/services/shared-catalog";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
@@ -22,17 +24,19 @@ export async function GET(request: NextRequest) {
       const user = session?.user;
       const providerRefreshToken = session?.provider_refresh_token;
 
-      if (user && providerRefreshToken) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("workspace_id")
-          .eq("id", user.id)
-          .single();
+      if (user) {
+        const admin = createAdminClient();
+        const workspaceId = await getSharedWorkspaceId();
 
-        if (profile && user.email) {
-          await supabase.from("email_accounts").upsert(
+        await admin
+          .from("profiles")
+          .update({ workspace_id: workspaceId })
+          .eq("id", user.id);
+
+        if (providerRefreshToken && user.email) {
+          await admin.from("email_accounts").upsert(
             {
-              workspace_id: profile.workspace_id,
+              workspace_id: workspaceId,
               user_id: user.id,
               email: user.email,
               provider_refresh_token: providerRefreshToken,

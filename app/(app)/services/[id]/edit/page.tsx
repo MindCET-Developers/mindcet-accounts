@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { ArrowRight, Save } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { createClient } from "@/lib/supabase/server";
+import { getAuthenticatedServiceCatalog } from "@/lib/services/shared-catalog";
 import { updateService } from "./actions";
 
 export default async function EditServicePage({
@@ -16,7 +16,7 @@ export default async function EditServicePage({
 }) {
   const { id } = await params;
   const { error } = await searchParams;
-  const supabase = await createClient();
+  const { supabase } = await getAuthenticatedServiceCatalog();
   const { data: service } = await supabase
     .from("services")
     .select("*")

@@ -2,6 +2,7 @@ import { FileText, Link2 } from "lucide-react";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { ScanInvoicesButton } from "@/components/invoices/ScanInvoicesButton";
+import { getAuthenticatedServiceCatalog } from "@/lib/services/shared-catalog";
 import { createClient } from "@/lib/supabase/server";
 import { createStorageSignedUrl } from "@/lib/supabase/storage";
 import type { Invoice, Service } from "@/lib/types";
@@ -27,6 +28,7 @@ export default async function InvoicesPage({
 }) {
   const scanStatus = await searchParams;
   const supabase = await createClient();
+  const { supabase: serviceCatalog } = await getAuthenticatedServiceCatalog();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -45,7 +47,7 @@ export default async function InvoicesPage({
     .limit(50)
     .returns<InvoiceWithService[]>();
 
-  const { data: services } = await supabase
+  const { data: services } = await serviceCatalog
     .from("services")
     .select("id,name,vendor")
     .order("name", { ascending: true })

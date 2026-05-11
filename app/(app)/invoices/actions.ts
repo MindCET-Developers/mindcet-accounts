@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { scanConnectedEmailAccounts } from "@/lib/gmail/invoice-scanner";
 
@@ -57,7 +58,7 @@ export async function assignInvoiceToService(formData: FormData) {
   const serviceId = parsed.data.service_id || null;
 
   if (serviceId) {
-    const { data: service, error: serviceError } = await supabase
+    const { data: service, error: serviceError } = await createAdminClient()
       .from("services")
       .select("id")
       .eq("id", serviceId)
