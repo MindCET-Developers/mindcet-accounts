@@ -8,6 +8,7 @@ const INVOICE_QUERY =
   'newer_than:180d (invoice OR receipt OR "payment received" OR "tax invoice" OR חשבונית OR קבלה OR filename:pdf)';
 const INVOICE_PDF_BUCKET = "invoice-pdfs";
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5";
+const DOCUPIPE_API = "https://app.docupipe.ai";
 
 type EmailAccountRow = Database["public"]["Tables"]["email_accounts"]["Row"];
 type InvoiceInsert = Database["public"]["Tables"]["invoices"]["Insert"];
@@ -28,6 +29,7 @@ interface ExtractedInvoice {
   invoiceNumber: string | null;
   vendorRaw: string | null;
   searchableText: string;
+  baseConfidence: number;
 }
 
 interface PdfAttachment {
@@ -218,7 +220,7 @@ async function scanAccount(
 
     let extracted: ExtractedInvoice | null = null;
     try {
-      extracted = await extractInvoice(fullMessage.data, pdfImport);
+      extracted = await extractInvoice(fullMessage.data, pdfImport, supabase, account.workspace_id);
     } catch (error) {
       errors.push(
         error instanceof Error
@@ -248,7 +250,7 @@ async function scanAccount(
       source_email_account_id: account.id,
       vendor_raw: extracted.vendorRaw,
       status: matchedServiceId ? "matched" : "unmatched",
-      extraction_confidence: matchedServiceId ? 0.8 : 0.6,
+      extraction_confidence: extracted.baseConfidence,
     };
 
     const { error } = await supabase.from("invoices").upsert(invoice, {
@@ -271,9 +273,34 @@ async function scanAccount(
   return { scannedMessages, insertedInvoices, skippedMessages, errors };
 }
 
+async function countDocupipeUsageThisMonth(
+  supabase: SupabaseClient<Database>,
+  workspaceId: string,
+): Promise<number> {
+  try {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const { count, error } = await supabase
+      .from("invoices")
+      .select("*", { count: "exact", head: true })
+      .eq("workspace_id", workspaceId)
+      .eq("extraction_confidence", 0.95)
+      .gte("created_at", startOfMonth.toISOString());
+
+    if (error) return Number(process.env.DOCUPIPE_MONTHLY_LIMIT ?? "15");
+    return count ?? 0;
+  } catch {
+    return Number(process.env.DOCUPIPE_MONTHLY_LIMIT ?? "15");
+  }
+}
+
 async function extractInvoice(
   message: gmail_v1.Schema$Message,
   pdfImport: PdfImport,
+  supabase: SupabaseClient<Database>,
+  workspaceId: string,
 ): Promise<ExtractedInvoice | null> {
   const headers = message.payload?.headers ?? [];
   const subject = headerValue(headers, "Subject") ?? "";
@@ -288,13 +315,28 @@ async function extractInvoice(
   }
 
   if (pdfImport.bytes) {
-    const pdfExtracted = await extractInvoiceFromPdf(pdfImport, {
-      subject,
-      from,
-      dateHeader,
-      internalDate: message.internalDate,
-      snippet: message.snippet,
-    });
+    let pdfExtracted: PdfExtractedInvoice | null = null;
+    let baseConfidence = 0.8;
+
+    const monthlyLimit = Number(process.env.DOCUPIPE_MONTHLY_LIMIT ?? "15");
+    if (process.env.DOCUPIPE_API_KEY && monthlyLimit > 0) {
+      const used = await countDocupipeUsageThisMonth(supabase, workspaceId);
+      if (used < monthlyLimit) {
+        pdfExtracted = await extractInvoiceWithDocupipe(pdfImport.bytes, pdfImport.filename ?? "invoice.pdf");
+        if (pdfExtracted) baseConfidence = 0.95;
+      }
+    }
+
+    if (!pdfExtracted) {
+      pdfExtracted = await extractInvoiceFromPdf(pdfImport, {
+        subject,
+        from,
+        dateHeader,
+        internalDate: message.internalDate,
+        snippet: message.snippet,
+      });
+      baseConfidence = 0.8;
+    }
 
     if (pdfExtracted?.amount && pdfExtracted.currency) {
       return {
@@ -315,6 +357,7 @@ async function extractInvoice(
         ]
           .filter(Boolean)
           .join("\n"),
+        baseConfidence,
       };
     }
   }
@@ -332,6 +375,107 @@ async function extractInvoice(
     invoiceNumber: extractInvoiceNumber(searchableText),
     vendorRaw: cleanSender(from),
     searchableText: `${from ?? ""}\n${searchableText}`,
+    baseConfidence: 0.6,
+  };
+}
+
+async function extractInvoiceWithDocupipe(
+  pdfBytes: Buffer,
+  filename: string,
+): Promise<PdfExtractedInvoice | null> {
+  const apiKey = process.env.DOCUPIPE_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const submitRes = await fetch(`${DOCUPIPE_API}/document`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        file: pdfBytes.toString("base64"),
+        filename,
+      }),
+    });
+
+    if (!submitRes.ok) return null;
+
+    const submitData = (await submitRes.json()) as { job_id?: string; id?: string };
+    const jobId = submitData.job_id ?? submitData.id;
+    if (!jobId) return null;
+
+    for (let attempt = 0; attempt < 15; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      const pollRes = await fetch(`${DOCUPIPE_API}/document/${jobId}`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+
+      if (!pollRes.ok) return null;
+
+      const pollData = (await pollRes.json()) as {
+        status?: string;
+        extracted_data?: Record<string, unknown>;
+        data?: Record<string, unknown>;
+      };
+
+      if (pollData.status === "failed") return null;
+      if (pollData.status !== "completed" && pollData.status !== "done") continue;
+
+      const data = (pollData.extracted_data ?? pollData.data ?? {}) as Record<string, unknown>;
+      return mapDocupipeResult(data);
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function mapDocupipeResult(data: Record<string, unknown>): PdfExtractedInvoice | null {
+  const rawAmount =
+    (data.total_amount ?? data.amount_due ?? data.amount ?? data.grand_total) as
+      | number
+      | string
+      | null
+      | undefined;
+  const amount = rawAmount != null ? Number(rawAmount) : null;
+
+  const rawCurrency = (data.currency ?? data.currency_code) as string | null | undefined;
+  const validCurrencies = ["USD", "ILS", "EUR", "GBP"] as const;
+  type ValidCurrency = (typeof validCurrencies)[number];
+  const currency = validCurrencies.includes((rawCurrency ?? "").toUpperCase() as ValidCurrency)
+    ? ((rawCurrency!.toUpperCase()) as ValidCurrency)
+    : null;
+
+  const rawDate = (data.date ?? data.invoice_date ?? data.issue_date) as string | null | undefined;
+  const invoiceDate = rawDate ? normalizeInvoiceDate(rawDate) : null;
+
+  const invoiceNumber = (data.invoice_number ?? data.invoice_no ?? data.number) as
+    | string
+    | null
+    | undefined;
+
+  const vendorRaw = (data.vendor ?? data.supplier_name ?? data.supplier ?? data.company_name) as
+    | string
+    | null
+    | undefined;
+
+  const searchableText = (data.text ?? data.raw_text ?? data.full_text) as
+    | string
+    | null
+    | undefined;
+
+  if (!amount || !currency) return null;
+
+  return {
+    invoiceDate: invoiceDate ?? null,
+    amount,
+    currency,
+    invoiceNumber: (invoiceNumber as string) ?? null,
+    vendorRaw: (vendorRaw as string) ?? null,
+    searchableText: (searchableText as string) ?? null,
   };
 }
 
