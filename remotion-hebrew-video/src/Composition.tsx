@@ -2,7 +2,7 @@ import { Audio } from "@remotion/media";
 import {
   AbsoluteFill,
   Easing,
-  Sequence,
+  Img,
   interpolate,
   spring,
   staticFile,
@@ -19,13 +19,14 @@ const script = [
 ];
 
 const colors = {
-  ink: "#111318",
-  paper: "#f5f0e8",
-  red: "#e34f3f",
-  cyan: "#39a7b7",
-  green: "#8bbf55",
-  yellow: "#f3c852",
-  purple: "#6854d8",
+  ink: "#141417",
+  paper: "#f8f4ec",
+  graphite: "#26282f",
+  red: "#f15a43",
+  cyan: "#28b6c8",
+  green: "#a6d35f",
+  yellow: "#f5c84b",
+  purple: "#6b5ce7",
 };
 
 const fit = (value: number, input: [number, number], output: [number, number]) =>
@@ -39,29 +40,28 @@ const Subtitle = () => {
   const frame = useCurrentFrame();
   const active = script.find((line) => frame >= line.from && frame < line.to);
   const lineFrame = active ? frame - active.from : 0;
-  const opacity = active ? fit(lineFrame, [0, 10], [0, 1]) : 0;
-  const y = active ? fit(lineFrame, [0, 14], [28, 0]) : 28;
 
   return (
     <div
       style={{
         position: "absolute",
-        bottom: 72,
-        left: 230,
-        right: 230,
+        bottom: 58,
+        left: 260,
+        right: 260,
         direction: "rtl",
-        opacity,
-        transform: `translateY(${y}px)`,
-        fontSize: 54,
-        lineHeight: 1.22,
+        opacity: active ? fit(lineFrame, [0, 10], [0, 1]) : 0,
+        transform: `translateY(${active ? fit(lineFrame, [0, 14], [22, 0]) : 22}px)`,
+        fontSize: 58,
+        lineHeight: 1.2,
         fontWeight: 900,
-        color: colors.paper,
+        color: "#ffffff",
         textAlign: "center",
-        textShadow: "0 4px 0 rgba(0,0,0,0.24)",
-        background: "rgba(17,19,24,0.82)",
-        border: `4px solid ${colors.yellow}`,
-        borderRadius: 18,
-        padding: "22px 46px 26px",
+        textShadow: "0 3px 12px rgba(0,0,0,0.55)",
+        background: "linear-gradient(90deg, rgba(20,20,23,0.78), rgba(20,20,23,0.93))",
+        border: "2px solid rgba(255,255,255,0.22)",
+        borderRadius: 16,
+        padding: "22px 42px 26px",
+        boxShadow: "0 18px 50px rgba(0,0,0,0.28)",
       }}
     >
       {active?.text}
@@ -69,133 +69,112 @@ const Subtitle = () => {
   );
 };
 
-const Presenter = () => {
+const PresenterVideo = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const entrance = spring({ frame, fps, config: { damping: 16, stiffness: 90 } });
-  const mouth = Math.abs(Math.sin(frame * 0.42)) * 18 + 8;
-  const hand = Math.sin(frame * 0.14) * 8;
-  const cameraPulse = fit(Math.sin(frame * 0.08), [-1, 1], [0.88, 1]);
+  const entrance = spring({ frame, fps, config: { damping: 20, stiffness: 80 } });
+  const zoom = 1.045 + Math.sin(frame * 0.018) * 0.012;
+  const tilt = Math.sin(frame * 0.012) * 0.35;
+  const audioLevel = Math.abs(Math.sin(frame * 0.42)) * 0.75 + 0.25;
 
   return (
     <div
       style={{
         position: "absolute",
-        inset: 0,
-        transform: `translateX(${fit(entrance, [0, 1], [-220, 0])}px)`,
+        top: 132,
+        left: 94,
+        width: 910,
+        height: 610,
+        borderRadius: 28,
+        overflow: "hidden",
+        background: colors.ink,
+        border: "1px solid rgba(255,255,255,0.26)",
+        boxShadow: "0 36px 100px rgba(0,0,0,0.42)",
+        opacity: fit(entrance, [0, 1], [0, 1]),
+        transform: `translateY(${fit(entrance, [0, 1], [70, 0])}px)`,
       }}
     >
-      <div
+      <Img
+        src={staticFile("presenter/ran-magen.png")}
         style={{
-          position: "absolute",
-          top: 112,
-          left: 130,
-          width: 390,
-          height: 390,
-          borderRadius: "50%",
-          background: "#f1b68e",
-          border: `12px solid ${colors.ink}`,
-          boxShadow: "18px 22px 0 rgba(17,19,24,0.14)",
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          transform: `scale(${zoom}) rotate(${tilt}deg)`,
+          filter: "contrast(1.08) saturate(1.08) brightness(0.98)",
         }}
       />
       <div
         style={{
           position: "absolute",
-          top: 94,
-          left: 154,
-          width: 342,
-          height: 122,
-          borderRadius: "180px 180px 48px 48px",
-          background: colors.ink,
+          inset: 0,
+          background:
+            "linear-gradient(180deg, rgba(0,0,0,0.12), transparent 35%, rgba(0,0,0,0.46))",
         }}
       />
-      {[235, 385].map((left) => (
-        <div
-          key={left}
+      <div
+        style={{
+          position: "absolute",
+          top: 24,
+          left: 24,
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          color: "#fff",
+          fontSize: 25,
+          fontWeight: 800,
+        }}
+      >
+        <span
           style={{
-            position: "absolute",
-            top: 272,
-            left,
-            width: 34,
-            height: 34,
+            width: 16,
+            height: 16,
             borderRadius: "50%",
-            background: colors.ink,
+            background: colors.red,
+            boxShadow: `0 0 ${18 + audioLevel * 18}px ${colors.red}`,
           }}
         />
-      ))}
+        REC
+      </div>
       <div
         style={{
           position: "absolute",
-          top: 352,
-          left: 290,
-          width: 82,
-          height: mouth,
-          borderRadius: 40,
-          background: colors.ink,
+          right: 24,
+          bottom: 24,
+          direction: "rtl",
+          color: "#fff",
+          fontSize: 28,
+          fontWeight: 900,
+          background: "rgba(0,0,0,0.56)",
+          borderRadius: 10,
+          padding: "10px 18px 12px",
         }}
-      />
+      >
+        רן מגן
+      </div>
       <div
         style={{
           position: "absolute",
-          top: 522,
-          left: 96,
-          width: 455,
-          height: 420,
-          borderRadius: "130px 130px 44px 44px",
-          background: colors.red,
-          border: `12px solid ${colors.ink}`,
+          left: 28,
+          bottom: 30,
+          display: "flex",
+          alignItems: "flex-end",
+          gap: 6,
+          height: 46,
         }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          top: 552,
-          left: 170,
-          width: 310,
-          height: 86,
-          borderRadius: 56,
-          background: colors.paper,
-          border: `10px solid ${colors.ink}`,
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          top: 594 + hand,
-          left: 470,
-          width: 230,
-          height: 92,
-          borderRadius: 60,
-          background: "#f1b68e",
-          border: `10px solid ${colors.ink}`,
-          transform: "rotate(-16deg)",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          top: 74,
-          left: 706,
-          width: 138,
-          height: 138,
-          borderRadius: "50%",
-          background: colors.ink,
-          border: `10px solid ${colors.paper}`,
-          transform: `scale(${cameraPulse})`,
-          boxShadow: `0 0 0 18px ${colors.cyan}`,
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          top: 118,
-          left: 750,
-          width: 50,
-          height: 50,
-          borderRadius: "50%",
-          background: colors.paper,
-        }}
-      />
+      >
+        {Array.from({ length: 18 }).map((_, index) => (
+          <div
+            key={index}
+            style={{
+              width: 8,
+              height: 10 + Math.abs(Math.sin(frame * 0.18 + index)) * 34 * audioLevel,
+              borderRadius: 5,
+              background: index % 3 === 0 ? colors.yellow : colors.green,
+            }}
+          />
+        ))}
+      </div>
     </div>
   );
 };
@@ -207,7 +186,7 @@ const ProductWindow = ({
   accent,
   rows,
 }: {
-  side: "left" | "right";
+  side: "top" | "bottom";
   delay: number;
   title: string;
   accent: string;
@@ -218,77 +197,74 @@ const ProductWindow = ({
   const progress = spring({
     frame: local,
     fps: 30,
-    config: { damping: 15, stiffness: 100 },
+    config: { damping: 18, stiffness: 96 },
   });
 
   return (
     <div
       style={{
         position: "absolute",
-        top: side === "left" ? 150 : 255,
-        right: side === "left" ? 640 : 112,
-        width: 610,
-        height: 430,
-        borderRadius: 16,
-        border: `8px solid ${colors.ink}`,
-        background: "#fbfaf7",
-        boxShadow: "18px 22px 0 rgba(17,19,24,0.16)",
+        top: side === "top" ? 132 : 472,
+        right: 94,
+        width: 720,
+        height: 282,
+        borderRadius: 20,
+        border: "1px solid rgba(255,255,255,0.22)",
+        background: "rgba(255,255,255,0.9)",
+        boxShadow: "0 28px 80px rgba(0,0,0,0.24)",
         overflow: "hidden",
-        transform: `translateY(${fit(progress, [0, 1], [80, 0])}px) rotate(${side === "left" ? -2 : 2}deg)`,
-        opacity: fit(progress, [0, 0.8], [0, 1]),
+        opacity: fit(progress, [0, 0.9], [0, 1]),
+        transform: `translateX(${fit(progress, [0, 1], [88, 0])}px)`,
       }}
     >
       <div
         style={{
-          height: 74,
+          height: 68,
           background: accent,
-          borderBottom: `8px solid ${colors.ink}`,
+          color: "#ffffff",
           display: "flex",
           alignItems: "center",
           padding: "0 28px",
-          gap: 14,
           direction: "rtl",
         }}
       >
-        <div style={{ fontSize: 34, fontWeight: 900, color: colors.ink }}>
-          {title}
-        </div>
+        <div style={{ fontSize: 35, fontWeight: 950 }}>{title}</div>
         <div
           style={{
             marginRight: "auto",
-            width: 18,
-            height: 18,
+            width: 14,
+            height: 14,
             borderRadius: "50%",
-            background: colors.paper,
-            boxShadow: `30px 0 0 ${colors.paper}, 60px 0 0 ${colors.paper}`,
+            background: "#ffffff",
+            opacity: 0.85,
+            boxShadow: "24px 0 0 #ffffff, 48px 0 0 #ffffff",
           }}
         />
       </div>
-      <div style={{ padding: "34px 34px 0", direction: "rtl" }}>
+      <div style={{ padding: "28px 32px 0", direction: "rtl" }}>
         {rows.map((row, index) => {
-          const rowProgress = fit(local - index * 12, [0, 18], [0, 1]);
+          const rowProgress = fit(local - index * 10, [0, 18], [0, 1]);
           return (
             <div
               key={row}
               style={{
-                marginBottom: 22,
+                marginBottom: 18,
                 opacity: rowProgress,
-                transform: `translateX(${fit(rowProgress, [0, 1], [36, 0])}px)`,
-                fontSize: 28,
+                transform: `translateX(${fit(rowProgress, [0, 1], [30, 0])}px)`,
+                fontSize: 27,
                 fontWeight: 800,
                 color: colors.ink,
                 display: "flex",
                 alignItems: "center",
-                gap: 16,
+                gap: 14,
               }}
             >
               <span
                 style={{
-                  width: 24,
-                  height: 24,
-                  borderRadius: 6,
+                  width: 22,
+                  height: 22,
+                  borderRadius: "50%",
                   background: index % 2 === 0 ? colors.green : colors.yellow,
-                  border: `4px solid ${colors.ink}`,
                   flex: "0 0 auto",
                 }}
               />
@@ -303,23 +279,35 @@ const ProductWindow = ({
 
 const Background = () => {
   const frame = useCurrentFrame();
-  const sweep = fit((frame % 180) / 180, [0, 1], [-360, 2100]);
+  const sweep = fit((frame % 210) / 210, [0, 1], [-360, 2200]);
 
   return (
     <AbsoluteFill
       style={{
-        background: colors.paper,
+        background: colors.graphite,
         overflow: "hidden",
-        fontFamily:
-          "'Segoe UI', Arial, 'Noto Sans Hebrew', 'Rubik', sans-serif",
+        fontFamily: "'Segoe UI', Arial, 'Noto Sans Hebrew', sans-serif",
       }}
     >
+      <Img
+        src={staticFile("presenter/ran-magen.png")}
+        style={{
+          position: "absolute",
+          inset: -60,
+          width: 2040,
+          height: 1200,
+          objectFit: "cover",
+          opacity: 0.22,
+          filter: "blur(22px) saturate(1.18) brightness(0.72)",
+          transform: `scale(${1.18 + Math.sin(frame * 0.01) * 0.02})`,
+        }}
+      />
       <div
         style={{
           position: "absolute",
           inset: 0,
           background:
-            "linear-gradient(135deg, rgba(57,167,183,0.22), transparent 38%, rgba(243,200,82,0.24) 72%, rgba(227,79,63,0.18))",
+            "linear-gradient(115deg, rgba(20,20,23,0.88) 0%, rgba(38,40,47,0.58) 46%, rgba(20,20,23,0.9) 100%)",
         }}
       />
       <div
@@ -327,9 +315,9 @@ const Background = () => {
           position: "absolute",
           top: 0,
           left: sweep,
-          width: 210,
+          width: 170,
           height: 1200,
-          background: "rgba(255,255,255,0.38)",
+          background: "rgba(255,255,255,0.12)",
           transform: "rotate(18deg)",
         }}
       />
@@ -337,12 +325,13 @@ const Background = () => {
         style={{
           position: "absolute",
           top: 42,
-          right: 76,
+          right: 78,
           direction: "rtl",
-          color: colors.ink,
-          fontSize: 42,
+          color: "#fff",
+          fontSize: 34,
           fontWeight: 900,
           letterSpacing: 0,
+          opacity: 0.9,
         }}
       >
         סרטון Remotion בעברית
@@ -353,77 +342,76 @@ const Background = () => {
 
 export const MyComposition = () => {
   const frame = useCurrentFrame();
-  const headlineScale = spring({
+  const { fps } = useVideoConfig();
+  const headline = spring({
     frame,
-    fps: 30,
-    config: { damping: 14, stiffness: 120 },
+    fps,
+    config: { damping: 16, stiffness: 110 },
   });
-  const headlineOpacity = fit(frame, [96, 126], [1, 0]);
 
   return (
     <AbsoluteFill>
       <Audio src={staticFile("voiceover/hebrew-discovery.mp3")} />
       <Background />
-      <Sequence>
-        <Presenter />
-      </Sequence>
+      <PresenterVideo />
       <div
         style={{
           position: "absolute",
-          top: 118,
-          right: 92,
-          width: 1110,
+          top: 810,
+          left: 94,
+          width: 910,
           direction: "rtl",
-          opacity: headlineOpacity,
-          transform: `scale(${fit(headlineScale, [0, 1], [0.82, 1])})`,
-          transformOrigin: "right top",
+          color: "#ffffff",
+          opacity: fit(frame, [0, 20], [0, 1]) * fit(frame, [98, 128], [1, 0]),
+          transform: `translateY(${fit(headline, [0, 1], [36, 0])}px)`,
         }}
       >
         <div
           style={{
-            fontSize: 110,
-            lineHeight: 1,
+            fontSize: 62,
+            lineHeight: 1.05,
             fontWeight: 950,
-            color: colors.ink,
-            textShadow: `8px 8px 0 ${colors.yellow}`,
           }}
         >
           לא תאמינו מה מצאתי היום
         </div>
+        <div
+          style={{
+            marginTop: 18,
+            fontSize: 30,
+            lineHeight: 1.3,
+            fontWeight: 700,
+            color: "rgba(255,255,255,0.72)",
+          }}
+        >
+          קלוד קוד ורימושן הופכים רעיון קצר לסרטון מוכן
+        </div>
       </div>
       <ProductWindow
-        side="left"
-        delay={84}
+        side="top"
+        delay={82}
         title="Claude Code"
         accent={colors.purple}
-        rows={[
-          "פותח רעיון מתוך שיחה",
-          "כותב קומפוזיציה ב-React",
-          "בודק ומרנדר בלי לצאת מהזרימה",
-        ]}
+        rows={["פותח רעיון מתוך שיחה", "כותב קומפוזיציה ב-React", "בודק ומתקן תוך כדי"]}
       />
       <ProductWindow
-        side="right"
+        side="bottom"
         delay={150}
         title="Remotion"
         accent={colors.cyan}
-        rows={[
-          "אנימציה לפי פריימים",
-          "כתוביות בעברית",
-          "וידאו אמיתי מקוד",
-        ]}
+        rows={["אנימציה לפי פריימים", "כתוביות בעברית", "רנדר ישירות ל-MP4"]}
       />
       <div
         style={{
           position: "absolute",
-          right: 166,
-          bottom: 258,
+          right: 126,
+          bottom: 248,
           direction: "rtl",
-          color: colors.ink,
-          fontSize: 42,
+          color: "#fff",
+          fontSize: 36,
           fontWeight: 900,
-          opacity: fit(frame, [236, 270], [0, 1]),
-          transform: `translateY(${fit(frame, [236, 270], [30, 0])}px)`,
+          opacity: fit(frame, [248, 278], [0, 1]),
+          transform: `translateY(${fit(frame, [248, 278], [24, 0])}px)`,
         }}
       >
         רעיון + קוד + תנועה = סרטון מוכן
