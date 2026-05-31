@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Grid2X2, List, Pencil, Tag, Trash2 } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import type { Service } from "@/lib/types";
@@ -241,8 +241,8 @@ function ServicesTableGrouped({
           </thead>
           <tbody className="divide-y divide-[--color-border-soft]">
             {groups.map(([vendor, group]) => (
-              <>
-                <tr key={`group-${vendor}`} className="bg-[--color-surface-2]/60">
+              <Fragment key={vendor}>
+                <tr className="bg-[--color-surface-2]/60">
                   <td colSpan={7} className="px-5 py-2 text-xs font-semibold text-[--color-muted] uppercase tracking-widest">
                     {vendor}
                     <span className="mr-2 font-normal">({group.length})</span>
@@ -287,7 +287,7 @@ function ServicesTableGrouped({
                     </tr>
                   );
                 })}
-              </>
+              </Fragment>
             ))}
           </tbody>
         </table>
