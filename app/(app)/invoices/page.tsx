@@ -24,9 +24,11 @@ export default async function InvoicesPage({
     skipped?: string;
     error?: string;
     assigned?: string;
+    service_id?: string;
   }>;
 }) {
   const scanStatus = await searchParams;
+  const activeServiceId = scanStatus.service_id ?? "";
   const supabase = await createClient();
   const { supabase: serviceCatalog } = await getAuthenticatedServiceCatalog();
   const {
@@ -40,12 +42,19 @@ export default async function InvoicesPage({
         .eq("user_id", user.id)
     : { data: [] };
 
-  const { data: invoices } = await supabase
+  let invoicesQuery = supabase
     .from("invoices")
     .select("*, services(name)")
     .order("invoice_date", { ascending: false })
-    .limit(50)
-    .returns<InvoiceWithService[]>();
+    .limit(50);
+
+  if (activeServiceId === "__unassigned__") {
+    invoicesQuery = invoicesQuery.is("service_id", null);
+  } else if (activeServiceId) {
+    invoicesQuery = invoicesQuery.eq("service_id", activeServiceId);
+  }
+
+  const { data: invoices } = await invoicesQuery.returns<InvoiceWithService[]>();
 
   const { data: services } = await serviceCatalog
     .from("services")
@@ -78,7 +87,7 @@ export default async function InvoicesPage({
         <div>
           <h1 className="text-3xl font-semibold tracking-tight mb-2">חשבוניות</h1>
           <p className="text-[--color-muted]">
-            {all.length} חשבוניות אחרונות שנשמרו במערכת
+            {all.length} חשבוניות{activeServiceId ? " (מסוננות)" : " אחרונות שנשמרו במערכת"}
           </p>
         </div>
         <form action={scanInvoices}>
@@ -86,44 +95,80 @@ export default async function InvoicesPage({
         </form>
       </div>
 
-      {emailAccounts && emailAccounts.length > 0 ? (
-        <div className="mb-4 rounded-[--radius] border border-[--color-border-soft] bg-[--color-surface] px-4 py-3 text-sm text-[--color-muted]">
-          Gmail מחובר: {emailAccounts.map((account) => account.email).join(", ")}
-          {emailAccounts[0]?.last_scan_at && (
-            <> · סריקה אחרונה: {formatDate(emailAccounts[0].last_scan_at)}</>
-          )}
-        </div>
-      ) : (
-        <div className="mb-4 rounded-[--radius] border border-[--color-accent-amber]/30 bg-[--color-accent-amber]/10 px-4 py-3 text-sm text-[--color-accent-amber]">
-          לא נמצא חשבון Gmail מחובר לסריקה. התחברות חדשה עם Google תשמור את ההרשאה.
-        </div>
-      )}
+      {/* ── בנרים ── */}
+      <div className="flex flex-col gap-2 mb-6">
+        {emailAccounts && emailAccounts.length > 0 ? (
+          <div className="rounded-[--radius] border border-[--color-border-soft] bg-[--color-surface] px-4 py-3 text-sm text-[--color-muted]">
+            Gmail מחובר: {emailAccounts.map((account) => account.email).join(", ")}
+            {emailAccounts[0]?.last_scan_at && (
+              <> · סריקה אחרונה: {formatDate(emailAccounts[0].last_scan_at)}</>
+            )}
+          </div>
+        ) : (
+          <div className="rounded-[--radius] border border-[--color-accent-amber]/30 bg-[--color-accent-amber]/10 px-4 py-3 text-sm text-[--color-accent-amber]">
+            לא נמצא חשבון Gmail מחובר לסריקה. התחברות חדשה עם Google תשמור את ההרשאה.
+          </div>
+        )}
 
-      {(scanStatus.scanned || scanStatus.error) && (
-        <div
-          className={
-            "mb-4 rounded-[--radius] border px-4 py-3 text-sm " +
-            (scanStatus.error
-              ? "border-[--color-accent-red]/30 bg-[--color-accent-red]/10 text-[--color-accent-red]"
-              : "border-[--color-accent-green]/30 bg-[--color-accent-green]/10 text-[--color-accent-green]")
-          }
-        >
-          {scanStatus.error
-            ? decodeURIComponent(scanStatus.error)
-            : `נסרקו ${scanStatus.scanned} מיילים, נוספו ${scanStatus.inserted} חשבוניות, דולגו ${scanStatus.skipped}.`}
+        <div className="rounded-[--radius] border border-[--color-border-soft] bg-[--color-surface] px-4 py-3 text-sm text-[--color-muted]">
+          סריקת Gmail שומרת חשבוניות בלבד. היא לא יוצרת שירותים חדשים; חשבוניות
+          שלא זוהו נשארות לא משויכות עד שיוך ידני לשירות קיים.
         </div>
-      )}
 
-      {scanStatus.assigned && (
-        <div className="mb-4 rounded-[--radius] border border-[--color-accent-green]/30 bg-[--color-accent-green]/10 px-4 py-3 text-sm text-[--color-accent-green]">
-          החשבונית שויכה לשירות.
-        </div>
-      )}
+        {(scanStatus.scanned || scanStatus.error) && (
+          <div
+            className={
+              "rounded-[--radius] border px-4 py-3 text-sm " +
+              (scanStatus.error
+                ? "border-[--color-accent-red]/30 bg-[--color-accent-red]/10 text-[--color-accent-red]"
+                : "border-[--color-accent-green]/30 bg-[--color-accent-green]/10 text-[--color-accent-green]")
+            }
+          >
+            {scanStatus.error
+              ? decodeURIComponent(scanStatus.error)
+              : `נסרקו ${scanStatus.scanned} מיילים, נוספו ${scanStatus.inserted} חשבוניות, דולגו ${scanStatus.skipped}.`}
+          </div>
+        )}
 
-      <div className="mb-4 rounded-[--radius] border border-[--color-border-soft] bg-[--color-surface] px-4 py-3 text-sm text-[--color-muted]">
-        סריקת Gmail שומרת חשבוניות בלבד. היא לא יוצרת שירותים חדשים; חשבוניות
-        שלא זוהו נשארות לא משויכות עד שיוך ידני לשירות קיים.
+        {scanStatus.assigned && (
+          <div className="rounded-[--radius] border border-[--color-accent-green]/30 bg-[--color-accent-green]/10 px-4 py-3 text-sm text-[--color-accent-green]">
+            החשבונית שויכה לשירות.
+          </div>
+        )}
       </div>
+
+      {/* ── פילטר לפי שירות ── */}
+      <form method="GET" className="mb-4 flex items-center gap-3">
+        <label className="text-sm text-[--color-muted] whitespace-nowrap">סנן לפי שירות:</label>
+        <select
+          name="service_id"
+          defaultValue={activeServiceId}
+          className="input h-9 min-w-48 text-sm"
+        >
+          <option value="">כל השירותים</option>
+          <option value="__unassigned__">לא משויך</option>
+          {serviceOptions.map((service) => (
+            <option key={service.id} value={service.id}>
+              {service.name}
+              {service.vendor ? ` · ${service.vendor}` : ""}
+            </option>
+          ))}
+        </select>
+        <button
+          type="submit"
+          className="h-9 rounded-[--radius-sm] px-4 text-sm font-medium bg-[--color-brand-500] text-white hover:bg-[--color-brand-400]"
+        >
+          סנן
+        </button>
+        {activeServiceId && (
+          <a
+            href="/invoices"
+            className="text-sm text-[--color-muted] hover:text-[--color-text] underline"
+          >
+            נקה פילטר
+          </a>
+        )}
+      </form>
 
       {all.length === 0 ? (
         <Card className="text-center py-16">
