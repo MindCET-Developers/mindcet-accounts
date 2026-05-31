@@ -78,26 +78,20 @@ export function ServicesBulkList({ services }: { services: Service[] }) {
       </div>
 
       {viewMode === "list" ? (
-        <div className="grid gap-6">
-          {groups.map(([vendor, group]) => (
-            <div key={vendor}>
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-widest text-[--color-muted]">
-                {vendor}
-              </h2>
-              <ServicesTable
-                selectedSet={selectedSet}
-                services={group}
-                onToggleService={toggleService}
-              />
-            </div>
-          ))}
-        </div>
+        <ServicesTableGrouped
+          groups={groups}
+          selectedSet={selectedSet}
+          onToggleService={toggleService}
+        />
       ) : (
-        <div className="grid gap-6">
+        <div className="grid gap-8">
           {groups.map(([vendor, group]) => (
             <div key={vendor}>
-              <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-[--color-muted]">
+              <h2 className="mb-3 text-sm font-semibold text-[--color-foreground] border-b border-[--color-border-soft] pb-2">
                 {vendor}
+                <span className="mr-2 text-xs font-normal text-[--color-muted]">
+                  ({group.length})
+                </span>
               </h2>
               <ServicesCards
                 selectedSet={selectedSet}
@@ -218,6 +212,87 @@ function ServicesCards({
         );
       })}
     </div>
+  );
+}
+
+function ServicesTableGrouped({
+  groups,
+  onToggleService,
+  selectedSet,
+}: {
+  groups: [string, Service[]][];
+  onToggleService: (serviceId: string) => void;
+  selectedSet: Set<string>;
+}) {
+  return (
+    <Card className="overflow-hidden !p-0">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[780px] text-sm">
+          <thead className="text-xs text-[--color-muted]">
+            <tr className="border-b border-[--color-border-soft]">
+              <th className="w-12 px-5 py-3 text-right font-medium"></th>
+              <th className="px-5 py-3 text-right font-medium">שירות</th>
+              <th className="px-5 py-3 text-right font-medium">סטטוס</th>
+              <th className="px-5 py-3 text-left font-medium">עלות</th>
+              <th className="px-5 py-3 text-right font-medium">חידוש</th>
+              <th className="px-5 py-3 text-right font-medium">תגיות</th>
+              <th className="px-5 py-3 text-right font-medium">פעולות</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-[--color-border-soft]">
+            {groups.map(([vendor, group]) => (
+              <>
+                <tr key={`group-${vendor}`} className="bg-[--color-surface-2]/60">
+                  <td colSpan={7} className="px-5 py-2 text-xs font-semibold text-[--color-muted] uppercase tracking-widest">
+                    {vendor}
+                    <span className="mr-2 font-normal">({group.length})</span>
+                  </td>
+                </tr>
+                {group.map((service) => {
+                  const checked = selectedSet.has(service.id);
+                  return (
+                    <tr key={service.id} className="hover:bg-[--color-surface-2]/50">
+                      <td className="px-5 py-4">
+                        <label className="inline-flex">
+                          <input
+                            type="checkbox"
+                            name="serviceIds"
+                            value={service.id}
+                            className="size-4 accent-[--color-brand-500]"
+                            checked={checked}
+                            onChange={() => onToggleService(service.id)}
+                          />
+                        </label>
+                      </td>
+                      <td className="px-5 py-4">
+                        <ServiceTitle service={service} />
+                      </td>
+                      <td className="px-5 py-4">
+                        <StatusPill status={service.status} />
+                      </td>
+                      <td className="px-5 py-4 text-left">
+                        <ServicePrice service={service} compact />
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-4 text-[--color-muted]">
+                        {service.next_renewal_date
+                          ? formatDate(service.next_renewal_date)
+                          : "-"}
+                      </td>
+                      <td className="px-5 py-4">
+                        <Tags tags={service.tags} compact />
+                      </td>
+                      <td className="px-5 py-4">
+                        <EditLink serviceId={service.id} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
   );
 }
 
