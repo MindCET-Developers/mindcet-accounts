@@ -37,13 +37,13 @@ export default async function EditServicePage({
           className="inline-flex items-center gap-2 text-sm text-[--color-muted] hover:text-[--color-foreground] mb-4"
         >
           <ArrowRight className="size-4" />
-          חזרה לשירותים
+          חזרה להוצאות
         </Link>
         <h1 className="text-3xl font-semibold tracking-tight mb-2">
-          עריכת שירות
+          עריכת הוצאה
         </h1>
         <p className="text-[--color-muted]">
-          עדכון פרטי השירות, העלות, מחזור החיוב ותאריך החידוש.
+          עדכון שם, עלות, מחזור חיוב ותאריך חידוש.
         </p>
       </div>
 
@@ -56,22 +56,13 @@ export default async function EditServicePage({
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Field label="שם השירות" required>
+            <Field label="שם ההוצאה" required>
               <input name="name" required className="input" defaultValue={service.name} />
             </Field>
             <Field label="ספק">
               <input name="vendor" className="input" defaultValue={service.vendor ?? ""} />
             </Field>
           </div>
-
-          <Field label="אתר">
-            <input
-              name="website"
-              type="url"
-              className="input"
-              defaultValue={service.website ?? ""}
-            />
-          </Field>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Field label="עלות" required>
@@ -120,34 +111,50 @@ export default async function EditServicePage({
             </Field>
           </div>
 
-          <Field label="תגיות">
-            <input name="tags" className="input" defaultValue={service.tags.join(", ")} />
-          </Field>
+          <details className="group rounded-[--radius] border border-[--color-border-soft]">
+            <summary className="cursor-pointer select-none px-4 py-3 text-sm font-medium text-[--color-muted] hover:text-[--color-foreground]">
+              הגדרות מתקדמות
+            </summary>
+            <div className="grid gap-5 px-4 pb-5 pt-1">
+              <Field label="אתר">
+                <input
+                  name="website"
+                  type="url"
+                  className="input"
+                  defaultValue={service.website ?? ""}
+                />
+              </Field>
 
-          <Field label="מילות מפתח לזיהוי חשבוניות">
-            <input
-              name="invoice_keywords"
-              className="input"
-              defaultValue={(service.invoice_keywords ?? []).join(", ")}
-            />
-          </Field>
+              <Field label="תגיות">
+                <input name="tags" className="input" defaultValue={service.tags.join(", ")} />
+              </Field>
 
-          <Field label="שולם דרך אימייל">
-            <input
-              name="paid_by_email"
-              type="email"
-              className="input"
-              defaultValue={service.paid_by_email ?? ""}
-            />
-          </Field>
+              <Field label="מילות מפתח לזיהוי חשבוניות">
+                <input
+                  name="invoice_keywords"
+                  className="input"
+                  defaultValue={(service.invoice_keywords ?? []).join(", ")}
+                />
+              </Field>
 
-          <Field label="הערות">
-            <textarea
-              name="notes"
-              className="input min-h-28 resize-y py-3"
-              defaultValue={service.notes ?? ""}
-            />
-          </Field>
+              <Field label="שולם דרך אימייל">
+                <input
+                  name="paid_by_email"
+                  type="email"
+                  className="input"
+                  defaultValue={service.paid_by_email ?? ""}
+                />
+              </Field>
+
+              <Field label="הערות">
+                <textarea
+                  name="notes"
+                  className="input min-h-28 resize-y py-3"
+                  defaultValue={service.notes ?? ""}
+                />
+              </Field>
+            </div>
+          </details>
 
           <div className="flex items-center justify-end gap-3 pt-2">
             <Link

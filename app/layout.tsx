@@ -15,8 +15,8 @@ const heebo = Heebo({
 });
 
 export const metadata: Metadata = {
-  title: "MindCET Accounts and Payments",
-  description: "ניהול שירותים, חשבונות ותשלומים — לצוות MindCET",
+  title: "MindCET Accounts",
+  description: "מעקב הוצאות וחשבוניות — לצוות MindCET",
 };
 
 export default function RootLayout({

@@ -20,13 +20,13 @@ export default async function NewServicePage({
           className="inline-flex items-center gap-2 text-sm text-[--color-muted] hover:text-[--color-foreground] mb-4"
         >
           <ArrowRight className="size-4" />
-          חזרה לשירותים
+          חזרה להוצאות
         </Link>
         <h1 className="text-3xl font-semibold tracking-tight mb-2">
-          הוספת שירות
+          הוספת הוצאה
         </h1>
         <p className="text-[--color-muted]">
-          שמרו פרטי ספק, עלות, מחזור חיוב ותאריך חידוש כדי לעקוב אחרי התקציב.
+          שם, עלות ומחזור חיוב — זה כל מה שצריך.
         </p>
       </div>
 
@@ -39,22 +39,13 @@ export default async function NewServicePage({
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Field label="שם השירות" required>
+            <Field label="שם ההוצאה" required>
               <input name="name" required className="input" placeholder="Bubble - EXSELI" />
             </Field>
             <Field label="ספק">
               <input name="vendor" className="input" placeholder="Bubble" />
             </Field>
           </div>
-
-          <Field label="אתר">
-            <input
-              name="website"
-              type="url"
-              className="input"
-              placeholder="https://bubble.io"
-            />
-          </Field>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Field label="עלות" required>
@@ -98,34 +89,50 @@ export default async function NewServicePage({
             </Field>
           </div>
 
-          <Field label="תגיות">
-            <input name="tags" className="input" placeholder="פיתוח, מוצר, nonprofit" />
-          </Field>
+          <details className="group rounded-[--radius] border border-[--color-border-soft]">
+            <summary className="cursor-pointer select-none px-4 py-3 text-sm font-medium text-[--color-muted] hover:text-[--color-foreground]">
+              הגדרות מתקדמות
+            </summary>
+            <div className="grid gap-5 px-4 pb-5 pt-1">
+              <Field label="אתר">
+                <input
+                  name="website"
+                  type="url"
+                  className="input"
+                  placeholder="https://bubble.io"
+                />
+              </Field>
 
-          <Field label="מילות מפתח לזיהוי חשבוניות">
-            <input
-              name="invoice_keywords"
-              className="input"
-              placeholder="שם מוצר, שם אפליקציה בבאבל, project id..."
-            />
-          </Field>
+              <Field label="תגיות">
+                <input name="tags" className="input" placeholder="פיתוח, מוצר, nonprofit" />
+              </Field>
 
-          <Field label="שולם דרך אימייל">
-            <input
-              name="paid_by_email"
-              type="email"
-              className="input"
-              placeholder="team@mindcet.org"
-            />
-          </Field>
+              <Field label="מילות מפתח לזיהוי חשבוניות">
+                <input
+                  name="invoice_keywords"
+                  className="input"
+                  placeholder="שם מוצר, שם אפליקציה בבאבל, project id..."
+                />
+              </Field>
 
-          <Field label="הערות">
-            <textarea
-              name="notes"
-              className="input min-h-28 resize-y py-3"
-              placeholder="פרטים פנימיים, בעלים בצוות, תנאי הנחה..."
-            />
-          </Field>
+              <Field label="שולם דרך אימייל">
+                <input
+                  name="paid_by_email"
+                  type="email"
+                  className="input"
+                  placeholder="team@mindcet.org"
+                />
+              </Field>
+
+              <Field label="הערות">
+                <textarea
+                  name="notes"
+                  className="input min-h-28 resize-y py-3"
+                  placeholder="פרטים פנימיים, בעלים בצוות, תנאי הנחה..."
+                />
+              </Field>
+            </div>
+          </details>
 
           <div className="flex items-center justify-end gap-3 pt-2">
             <Link
@@ -136,7 +143,7 @@ export default async function NewServicePage({
             </Link>
             <Button type="submit">
               <Save className="size-4" />
-              שמירת שירות
+              שמירה
             </Button>
           </div>
         </form>

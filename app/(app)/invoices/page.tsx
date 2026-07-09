@@ -15,6 +15,32 @@ type InvoiceWithService = Invoice & {
 
 export const maxDuration = 60;
 
+const hebrewMonth = new Intl.DateTimeFormat("he", {
+  month: "long",
+  year: "numeric",
+});
+
+function monthKey(invoiceDate: string): string {
+  return invoiceDate.slice(0, 7); // YYYY-MM
+}
+
+function monthLabel(key: string): string {
+  const [year, month] = key.split("-").map(Number);
+  if (!year || !month) return key;
+  return hebrewMonth.format(new Date(year, month - 1, 1));
+}
+
+function formatTotals(invoices: InvoiceWithService[]): string {
+  const byCurrency = new Map<string, number>();
+  for (const invoice of invoices) {
+    const current = byCurrency.get(invoice.currency) ?? 0;
+    byCurrency.set(invoice.currency, current + Number(invoice.amount));
+  }
+  return [...byCurrency.entries()]
+    .map(([currency, total]) => formatCurrency(total, currency))
+    .join(" + ");
+}
+
 export default async function InvoicesPage({
   searchParams,
 }: {
@@ -46,7 +72,7 @@ export default async function InvoicesPage({
     .from("invoices")
     .select("*, services(name)")
     .order("invoice_date", { ascending: false })
-    .limit(50);
+    .limit(200);
 
   if (activeServiceId === "__unassigned__") {
     invoicesQuery = invoicesQuery.is("service_id", null);
@@ -81,13 +107,32 @@ export default async function InvoicesPage({
     ),
   );
 
+  // קיבוץ לפי חודש — השאילתה כבר ממוינת מהחדש לישן
+  const months = new Map<string, InvoiceWithService[]>();
+  for (const invoice of all) {
+    const key = monthKey(invoice.invoice_date);
+    if (!months.has(key)) months.set(key, []);
+    months.get(key)!.push(invoice);
+  }
+
+  const connectedAccount = emailAccounts?.[0];
+
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-8">
+    <div className="max-w-5xl mx-auto">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-2">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight mb-2">חשבוניות</h1>
-          <p className="text-[--color-muted]">
-            {all.length} חשבוניות{activeServiceId ? " (מסוננות)" : " אחרונות שנשמרו במערכת"}
+          <p className="text-sm text-[--color-muted]">
+            {connectedAccount ? (
+              <>
+                Gmail מחובר: {connectedAccount.email}
+                {connectedAccount.last_scan_at && (
+                  <> · סריקה אחרונה: {formatDate(connectedAccount.last_scan_at)}</>
+                )}
+              </>
+            ) : (
+              "החשבוניות נשמרות כאן אוטומטית מסריקת המייל"
+            )}
           </p>
         </div>
         <form action={scanInvoices}>
@@ -95,25 +140,13 @@ export default async function InvoicesPage({
         </form>
       </div>
 
-      {/* ── בנרים ── */}
-      <div className="flex flex-col gap-2 mb-6">
-        {emailAccounts && emailAccounts.length > 0 ? (
-          <div className="rounded-[--radius] border border-[--color-border-soft] bg-[--color-surface] px-4 py-3 text-sm text-[--color-muted]">
-            Gmail מחובר: {emailAccounts.map((account) => account.email).join(", ")}
-            {emailAccounts[0]?.last_scan_at && (
-              <> · סריקה אחרונה: {formatDate(emailAccounts[0].last_scan_at)}</>
-            )}
-          </div>
-        ) : (
+      {/* ── הודעות זמניות ── */}
+      <div className="flex flex-col gap-2 mb-6 empty:mb-0">
+        {!connectedAccount && (
           <div className="rounded-[--radius] border border-[--color-accent-amber]/30 bg-[--color-accent-amber]/10 px-4 py-3 text-sm text-[--color-accent-amber]">
             לא נמצא חשבון Gmail מחובר לסריקה. התחברות חדשה עם Google תשמור את ההרשאה.
           </div>
         )}
-
-        <div className="rounded-[--radius] border border-[--color-border-soft] bg-[--color-surface] px-4 py-3 text-sm text-[--color-muted]">
-          סריקת Gmail שומרת חשבוניות בלבד. היא לא יוצרת שירותים חדשים; חשבוניות
-          שלא זוהו נשארות לא משויכות עד שיוך ידני לשירות קיים.
-        </div>
 
         {(scanStatus.scanned || scanStatus.error) && (
           <div
@@ -138,14 +171,14 @@ export default async function InvoicesPage({
       </div>
 
       {/* ── פילטר לפי שירות ── */}
-      <form method="GET" className="mb-4 flex items-center gap-3">
-        <label className="text-sm text-[--color-muted] whitespace-nowrap">סנן לפי שירות:</label>
+      <form method="GET" className="mt-4 mb-8 flex flex-wrap items-center gap-2">
+        <label className="text-sm text-[--color-muted] whitespace-nowrap">הצג:</label>
         <select
           name="service_id"
           defaultValue={activeServiceId}
-          className="input h-9 min-w-48 text-sm"
+          className="input h-9 w-auto min-w-44 text-sm"
         >
-          <option value="">כל השירותים</option>
+          <option value="">הכל</option>
           <option value="__unassigned__">לא משויך</option>
           {serviceOptions.map((service) => (
             <option key={service.id} value={service.id}>
@@ -156,23 +189,23 @@ export default async function InvoicesPage({
         </select>
         <button
           type="submit"
-          className="h-9 rounded-[--radius-sm] px-4 text-sm font-medium bg-[--color-brand-500] text-white hover:bg-[--color-brand-400]"
+          className="h-9 rounded-[--radius-sm] px-4 text-sm font-medium text-[--color-brand-600] hover:bg-[--color-surface-2]"
         >
           סנן
         </button>
         {activeServiceId && (
           <a
             href="/invoices"
-            className="text-sm text-[--color-muted] hover:text-[--color-text] underline"
+            className="text-sm text-[--color-muted] hover:text-[--color-foreground] underline"
           >
-            נקה פילטר
+            נקה
           </a>
         )}
       </form>
 
       {all.length === 0 ? (
         <Card className="text-center py-16">
-          <div className="mx-auto mb-4 size-12 rounded-[--radius-md] bg-[--color-surface-2] grid place-items-center text-[--color-brand-400]">
+          <div className="mx-auto mb-4 size-12 rounded-[--radius-md] bg-[--color-surface-2] grid place-items-center text-[--color-brand-600]">
             <FileText className="size-6" />
           </div>
           <h2 className="text-lg font-medium mb-1">עדיין אין חשבוניות</h2>
@@ -181,99 +214,99 @@ export default async function InvoicesPage({
           </p>
         </Card>
       ) : (
-        <Card className="overflow-hidden !p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-xs text-[--color-muted]">
-                <tr className="border-b border-[--color-border-soft]">
-                  <th className="text-right font-medium px-5 py-3">תאריך</th>
-                  <th className="text-right font-medium px-5 py-3">ספק</th>
-                  <th className="text-right font-medium px-5 py-3">שירות</th>
-                  <th className="text-right font-medium px-5 py-3">שיוך ידני</th>
-                  <th className="text-left font-medium px-5 py-3">סכום</th>
-                  <th className="text-right font-medium px-5 py-3">סטטוס</th>
-                  <th className="text-right font-medium px-5 py-3">PDF</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[--color-border-soft]">
-                {all.map((invoice) => (
-                  <tr key={invoice.id} className="hover:bg-[--color-surface-2]/50">
-                    <td className="px-5 py-4 whitespace-nowrap">
-                      {formatDate(invoice.invoice_date)}
-                    </td>
-                    <td className="px-5 py-4">{invoice.vendor_raw ?? "-"}</td>
-                    <td className="px-5 py-4">
-                      {invoice.services?.name ?? "לא משויך"}
-                    </td>
-                    <td className="px-5 py-4 min-w-56">
-                      <form action={assignInvoiceToService} className="flex items-center gap-2">
-                        <input type="hidden" name="invoice_id" value={invoice.id} />
-                        <select
-                          name="service_id"
-                          defaultValue={invoice.service_id ?? ""}
-                          className="input h-9 min-w-40 text-xs"
-                        >
-                          <option value="">לא משויך</option>
-                          {serviceOptions.map((service) => (
-                            <option key={service.id} value={service.id}>
-                              {service.name}
-                              {service.vendor ? ` · ${service.vendor}` : ""}
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          type="submit"
-                          className="h-9 rounded-[--radius-sm] px-3 text-xs font-medium text-[--color-brand-400] hover:bg-[--color-surface-2]"
-                        >
-                          שמור
-                        </button>
-                      </form>
-                    </td>
-                    <td className="px-5 py-4 text-left kpi-number">
-                      {formatCurrency(Number(invoice.amount), invoice.currency)}
-                    </td>
-                    <td className="px-5 py-4">
-                      <StatusBadge status={invoice.status} />
-                    </td>
-                    <td className="px-5 py-4">
-                      {signedPdfUrls.get(invoice.id) ? (
-                        <Link
-                          href={signedPdfUrls.get(invoice.id)!}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[--color-brand-400] hover:text-[--color-brand-300]"
-                        >
-                          <Link2 className="size-3.5" />
-                          קובץ
-                        </Link>
-                      ) : (
-                        <span className="text-[--color-muted-2]">-</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+        <div className="grid gap-8">
+          {[...months.entries()].map(([key, monthInvoices]) => (
+            <section key={key}>
+              <div className="flex items-baseline justify-between gap-3 mb-3 px-1">
+                <h2 className="text-base font-semibold">
+                  {monthLabel(key)}
+                  <span className="mr-2 text-xs font-normal text-[--color-muted]">
+                    ({monthInvoices.length})
+                  </span>
+                </h2>
+                <div className="kpi-number text-sm text-[--color-muted]">
+                  {formatTotals(monthInvoices)}
+                </div>
+              </div>
+
+              <Card className="overflow-hidden !p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="text-xs text-[--color-muted]">
+                      <tr className="border-b border-[--color-border-soft]">
+                        <th className="text-right font-medium px-5 py-3">תאריך</th>
+                        <th className="text-right font-medium px-5 py-3">ספק</th>
+                        <th className="text-right font-medium px-5 py-3">שירות</th>
+                        <th className="text-left font-medium px-5 py-3">סכום</th>
+                        <th className="text-right font-medium px-5 py-3">PDF</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[--color-border-soft]">
+                      {monthInvoices.map((invoice) => (
+                        <tr key={invoice.id} className="hover:bg-[--color-surface-2]/50">
+                          <td className="px-5 py-3.5 whitespace-nowrap">
+                            {formatDate(invoice.invoice_date)}
+                          </td>
+                          <td className="px-5 py-3.5">{invoice.vendor_raw ?? "-"}</td>
+                          <td className="px-5 py-3.5">
+                            {invoice.service_id ? (
+                              (invoice.services?.name ?? "-")
+                            ) : (
+                              <form
+                                action={assignInvoiceToService}
+                                className="flex items-center gap-2"
+                              >
+                                <input type="hidden" name="invoice_id" value={invoice.id} />
+                                <select
+                                  name="service_id"
+                                  defaultValue=""
+                                  className="input h-8 w-auto min-w-36 text-xs"
+                                >
+                                  <option value="">לא משויך</option>
+                                  {serviceOptions.map((service) => (
+                                    <option key={service.id} value={service.id}>
+                                      {service.name}
+                                      {service.vendor ? ` · ${service.vendor}` : ""}
+                                    </option>
+                                  ))}
+                                </select>
+                                <button
+                                  type="submit"
+                                  className="h-8 rounded-[--radius-sm] px-3 text-xs font-medium text-[--color-brand-600] hover:bg-[--color-surface-2]"
+                                >
+                                  שיוך
+                                </button>
+                              </form>
+                            )}
+                          </td>
+                          <td className="px-5 py-3.5 text-left kpi-number whitespace-nowrap">
+                            {formatCurrency(Number(invoice.amount), invoice.currency)}
+                          </td>
+                          <td className="px-5 py-3.5">
+                            {signedPdfUrls.get(invoice.id) ? (
+                              <Link
+                                href={signedPdfUrls.get(invoice.id)!}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[--color-brand-600] hover:text-[--color-brand-700]"
+                              >
+                                <Link2 className="size-3.5" />
+                                קובץ
+                              </Link>
+                            ) : (
+                              <span className="text-[--color-muted-2]">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </section>
+          ))}
+        </div>
       )}
     </div>
-  );
-}
-
-function StatusBadge({ status }: { status: "matched" | "unmatched" | "manual" }) {
-  const label =
-    status === "matched" ? "משויך" : status === "manual" ? "ידני" : "לא משויך";
-  const tone =
-    status === "matched"
-      ? "bg-[--color-accent-green]/10 text-[--color-accent-green]"
-      : status === "manual"
-        ? "bg-[--color-brand-500]/10 text-[--color-brand-400]"
-        : "bg-[--color-accent-amber]/10 text-[--color-accent-amber]";
-
-  return (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs ${tone}`}>
-      {label}
-    </span>
   );
 }
