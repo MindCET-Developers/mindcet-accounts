@@ -122,7 +122,7 @@ export default async function InvoicesPage({
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-2">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight mb-2">חשבוניות</h1>
-          <p className="text-sm text-[--color-muted]">
+          <p className="text-sm text-(--color-muted)">
             {connectedAccount ? (
               <>
                 Gmail מחובר: {connectedAccount.email}
@@ -143,7 +143,7 @@ export default async function InvoicesPage({
       {/* ── הודעות זמניות ── */}
       <div className="flex flex-col gap-2 mb-6 empty:mb-0">
         {!connectedAccount && (
-          <div className="rounded-[--radius] border border-[--color-accent-amber]/30 bg-[--color-accent-amber]/10 px-4 py-3 text-sm text-[--color-accent-amber]">
+          <div className="rounded-(--radius) border border-(--color-accent-amber)/30 bg-(--color-accent-amber)/10 px-4 py-3 text-sm text-(--color-accent-amber)">
             לא נמצא חשבון Gmail מחובר לסריקה. התחברות חדשה עם Google תשמור את ההרשאה.
           </div>
         )}
@@ -151,10 +151,10 @@ export default async function InvoicesPage({
         {(scanStatus.scanned || scanStatus.error) && (
           <div
             className={
-              "rounded-[--radius] border px-4 py-3 text-sm " +
+              "rounded-(--radius) border px-4 py-3 text-sm " +
               (scanStatus.error
-                ? "border-[--color-accent-red]/30 bg-[--color-accent-red]/10 text-[--color-accent-red]"
-                : "border-[--color-accent-green]/30 bg-[--color-accent-green]/10 text-[--color-accent-green]")
+                ? "border-(--color-accent-red)/30 bg-(--color-accent-red)/10 text-(--color-accent-red)"
+                : "border-(--color-accent-green)/30 bg-(--color-accent-green)/10 text-(--color-accent-green)")
             }
           >
             {scanStatus.error
@@ -164,7 +164,7 @@ export default async function InvoicesPage({
         )}
 
         {scanStatus.assigned && (
-          <div className="rounded-[--radius] border border-[--color-accent-green]/30 bg-[--color-accent-green]/10 px-4 py-3 text-sm text-[--color-accent-green]">
+          <div className="rounded-(--radius) border border-(--color-accent-green)/30 bg-(--color-accent-green)/10 px-4 py-3 text-sm text-(--color-accent-green)">
             החשבונית שויכה לשירות.
           </div>
         )}
@@ -172,7 +172,7 @@ export default async function InvoicesPage({
 
       {/* ── פילטר לפי שירות ── */}
       <form method="GET" className="mt-4 mb-8 flex flex-wrap items-center gap-2">
-        <label className="text-sm text-[--color-muted] whitespace-nowrap">הצג:</label>
+        <label className="text-sm text-(--color-muted) whitespace-nowrap">הצג:</label>
         <select
           name="service_id"
           defaultValue={activeServiceId}
@@ -189,14 +189,14 @@ export default async function InvoicesPage({
         </select>
         <button
           type="submit"
-          className="h-9 rounded-[--radius-sm] px-4 text-sm font-medium text-[--color-brand-600] hover:bg-[--color-surface-2]"
+          className="h-9 rounded-(--radius-sm) px-4 text-sm font-medium text-(--color-brand-600) hover:bg-(--color-surface-2)"
         >
           סנן
         </button>
         {activeServiceId && (
           <a
             href="/invoices"
-            className="text-sm text-[--color-muted] hover:text-[--color-foreground] underline"
+            className="text-sm text-(--color-muted) hover:text-(--color-foreground) underline"
           >
             נקה
           </a>
@@ -205,11 +205,11 @@ export default async function InvoicesPage({
 
       {all.length === 0 ? (
         <Card className="text-center py-16">
-          <div className="mx-auto mb-4 size-12 rounded-[--radius-md] bg-[--color-surface-2] grid place-items-center text-[--color-brand-600]">
+          <div className="mx-auto mb-4 size-12 rounded-(--radius-md) bg-(--color-surface-2) grid place-items-center text-(--color-brand-600)">
             <FileText className="size-6" />
           </div>
           <h2 className="text-lg font-medium mb-1">עדיין אין חשבוניות</h2>
-          <p className="text-sm text-[--color-muted]">
+          <p className="text-sm text-(--color-muted)">
             סריקת Gmail תוסיף לכאן חשבוניות כשמזוהה סכום במייל.
           </p>
         </Card>
@@ -220,11 +220,11 @@ export default async function InvoicesPage({
               <div className="flex items-baseline justify-between gap-3 mb-3 px-1">
                 <h2 className="text-base font-semibold">
                   {monthLabel(key)}
-                  <span className="mr-2 text-xs font-normal text-[--color-muted]">
+                  <span className="mr-2 text-xs font-normal text-(--color-muted)">
                     ({monthInvoices.length})
                   </span>
                 </h2>
-                <div className="kpi-number text-sm text-[--color-muted]">
+                <div className="kpi-number text-sm text-(--color-muted)">
                   {formatTotals(monthInvoices)}
                 </div>
               </div>
@@ -232,8 +232,8 @@ export default async function InvoicesPage({
               <Card className="overflow-hidden !p-0">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="text-xs text-[--color-muted]">
-                      <tr className="border-b border-[--color-border-soft]">
+                    <thead className="text-xs text-(--color-muted)">
+                      <tr className="border-b border-(--color-border-soft)">
                         <th className="text-right font-medium px-5 py-3">תאריך</th>
                         <th className="text-right font-medium px-5 py-3">ספק</th>
                         <th className="text-right font-medium px-5 py-3">שירות</th>
@@ -241,9 +241,9 @@ export default async function InvoicesPage({
                         <th className="text-right font-medium px-5 py-3">PDF</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[--color-border-soft]">
+                    <tbody className="divide-y divide-(--color-border-soft)">
                       {monthInvoices.map((invoice) => (
-                        <tr key={invoice.id} className="hover:bg-[--color-surface-2]/50">
+                        <tr key={invoice.id} className="hover:bg-(--color-surface-2)/50">
                           <td className="px-5 py-3.5 whitespace-nowrap">
                             {formatDate(invoice.invoice_date)}
                           </td>
@@ -272,7 +272,7 @@ export default async function InvoicesPage({
                                 </select>
                                 <button
                                   type="submit"
-                                  className="h-8 rounded-[--radius-sm] px-3 text-xs font-medium text-[--color-brand-600] hover:bg-[--color-surface-2]"
+                                  className="h-8 rounded-(--radius-sm) px-3 text-xs font-medium text-(--color-brand-600) hover:bg-(--color-surface-2)"
                                 >
                                   שיוך
                                 </button>
@@ -288,13 +288,13 @@ export default async function InvoicesPage({
                                 href={signedPdfUrls.get(invoice.id)!}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-[--color-brand-600] hover:text-[--color-brand-700]"
+                                className="inline-flex items-center gap-1 text-(--color-brand-600) hover:text-(--color-brand-700)"
                               >
                                 <Link2 className="size-3.5" />
                                 קובץ
                               </Link>
                             ) : (
-                              <span className="text-[--color-muted-2]">-</span>
+                              <span className="text-(--color-muted-2)">-</span>
                             )}
                           </td>
                         </tr>

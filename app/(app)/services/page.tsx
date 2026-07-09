@@ -70,7 +70,7 @@ export default async function ServicesPage({
       <div className="flex items-end justify-between mb-8">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight mb-2">הוצאות</h1>
-          <p className="text-sm text-[--color-muted]">
+          <p className="text-sm text-(--color-muted)">
             {all.length === 0
               ? "המנויים והשירותים הקבועים של הצוות"
               : monthlyTotal
@@ -87,7 +87,7 @@ export default async function ServicesPage({
       </div>
 
       {error && (
-        <div className="mb-4 rounded-[--radius] border border-[--color-accent-red]/30 bg-[--color-accent-red]/10 p-3 text-sm text-[--color-accent-red]">
+        <div className="mb-4 rounded-(--radius) border border-(--color-accent-red)/30 bg-(--color-accent-red)/10 p-3 text-sm text-(--color-accent-red)">
           {decodeURIComponent(error)}
         </div>
       )}
@@ -96,7 +96,7 @@ export default async function ServicesPage({
         <Card className="text-center py-16">
           <div className="text-5xl mb-4">📦</div>
           <h2 className="text-lg font-medium mb-1">עדיין אין הוצאות</h2>
-          <p className="text-sm text-[--color-muted] mb-6">
+          <p className="text-sm text-(--color-muted) mb-6">
             התחילו בהוספת ההוצאה הקבועה הראשונה
           </p>
           <Link href="/services/new" className="inline-block">
@@ -112,11 +112,11 @@ export default async function ServicesPage({
             <section key={vendor}>
               <h2 className="mb-3 px-1 text-sm font-semibold">
                 {vendor}
-                <span className="mr-2 text-xs font-normal text-[--color-muted]">
+                <span className="mr-2 text-xs font-normal text-(--color-muted)">
                   ({group.length})
                 </span>
               </h2>
-              <Card className="!p-0 divide-y divide-[--color-border-soft]">
+              <Card className="!p-0 divide-y divide-(--color-border-soft)">
                 {group.map((service) => (
                   <div
                     key={service.id}
@@ -126,13 +126,13 @@ export default async function ServicesPage({
                       <div className="font-medium truncate">
                         {service.name}
                         {STATUS_LABELS[service.status] && (
-                          <span className="mr-2 text-xs font-normal text-[--color-muted-2]">
+                          <span className="mr-2 text-xs font-normal text-(--color-muted-2)">
                             ({STATUS_LABELS[service.status]})
                           </span>
                         )}
                       </div>
                       {service.next_renewal_date && (
-                        <div className="text-xs text-[--color-muted] mt-0.5">
+                        <div className="text-xs text-(--color-muted) mt-0.5">
                           חידוש: {formatDate(service.next_renewal_date)}
                         </div>
                       )}
@@ -144,14 +144,14 @@ export default async function ServicesPage({
                           service.cost_currency,
                         )}
                       </div>
-                      <div className="text-xs text-[--color-muted] mt-0.5">
+                      <div className="text-xs text-(--color-muted) mt-0.5">
                         {CYCLE_LABELS[service.billing_cycle] ?? service.billing_cycle}
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <Link
                         href={`/services/${service.id}/edit`}
-                        className="size-8 grid place-items-center rounded-[--radius] text-[--color-muted] hover:text-[--color-foreground] hover:bg-[--color-surface-2] transition-colors"
+                        className="size-8 grid place-items-center rounded-(--radius) text-(--color-muted) hover:text-(--color-foreground) hover:bg-(--color-surface-2) transition-colors"
                         aria-label={`עריכת ${service.name}`}
                       >
                         <Pencil className="size-4" />

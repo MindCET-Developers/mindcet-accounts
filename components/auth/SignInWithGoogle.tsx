@@ -49,7 +49,7 @@ export function SignInWithGoogle() {
         {loading ? "מעביר ל-Google..." : "התחברות עם Google"}
       </Button>
       {error && (
-        <p className="text-xs text-[--color-accent-red] text-center">{error}</p>
+        <p className="text-xs text-(--color-accent-red) text-center">{error}</p>
       )}
     </div>
   );
