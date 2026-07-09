@@ -8,19 +8,19 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         primary:
-          "bg-[--color-brand-600] text-white hover:bg-[--color-brand-700] active:scale-[0.98]",
+          "bg-(--color-brand-600) text-white hover:bg-(--color-brand-700) active:scale-[0.98]",
         secondary:
-          "surface-hover text-[--color-foreground] hover:surface-hover-active",
+          "surface-hover text-(--color-foreground) hover:surface-hover-active",
         ghost:
-          "text-[--color-muted] hover:text-[--color-foreground] hover:bg-[--color-surface-2]",
+          "text-(--color-muted) hover:text-(--color-foreground) hover:bg-(--color-surface-2)",
         danger:
-          "bg-[--color-accent-red] text-white hover:opacity-90",
+          "bg-(--color-accent-red) text-white hover:opacity-90",
       },
       size: {
-        sm: "h-8 px-3 text-xs rounded-[--radius-sm]",
-        md: "h-10 px-4 text-sm rounded-[--radius]",
-        lg: "h-12 px-6 text-base rounded-[--radius-md]",
-        icon: "size-10 rounded-[--radius]",
+        sm: "h-8 px-3 text-xs rounded-(--radius-sm)",
+        md: "h-10 px-4 text-sm rounded-(--radius)",
+        lg: "h-12 px-6 text-base rounded-(--radius-md)",
+        icon: "size-10 rounded-(--radius)",
       },
     },
     defaultVariants: { variant: "primary", size: "md" },

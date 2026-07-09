@@ -34,7 +34,7 @@ export default async function EditServicePage({
       <div className="mb-8">
         <Link
           href="/services"
-          className="inline-flex items-center gap-2 text-sm text-[--color-muted] hover:text-[--color-foreground] mb-4"
+          className="inline-flex items-center gap-2 text-sm text-(--color-muted) hover:text-(--color-foreground) mb-4"
         >
           <ArrowRight className="size-4" />
           חזרה להוצאות
@@ -42,7 +42,7 @@ export default async function EditServicePage({
         <h1 className="text-3xl font-semibold tracking-tight mb-2">
           עריכת הוצאה
         </h1>
-        <p className="text-[--color-muted]">
+        <p className="text-(--color-muted)">
           עדכון שם, עלות, מחזור חיוב ותאריך חידוש.
         </p>
       </div>
@@ -50,7 +50,7 @@ export default async function EditServicePage({
       <Card>
         <form action={action} className="grid grid-cols-1 gap-5">
           {error && (
-            <div className="rounded-[--radius] border border-[--color-accent-red]/30 bg-[--color-accent-red]/10 p-3 text-sm text-[--color-accent-red]">
+            <div className="rounded-(--radius) border border-(--color-accent-red)/30 bg-(--color-accent-red)/10 p-3 text-sm text-(--color-accent-red)">
               {decodeURIComponent(error)}
             </div>
           )}
@@ -111,8 +111,8 @@ export default async function EditServicePage({
             </Field>
           </div>
 
-          <details className="group rounded-[--radius] border border-[--color-border-soft]">
-            <summary className="cursor-pointer select-none px-4 py-3 text-sm font-medium text-[--color-muted] hover:text-[--color-foreground]">
+          <details className="group rounded-(--radius) border border-(--color-border-soft)">
+            <summary className="cursor-pointer select-none px-4 py-3 text-sm font-medium text-(--color-muted) hover:text-(--color-foreground)">
               הגדרות מתקדמות
             </summary>
             <div className="grid gap-5 px-4 pb-5 pt-1">
@@ -159,7 +159,7 @@ export default async function EditServicePage({
           <div className="flex items-center justify-end gap-3 pt-2">
             <Link
               href="/services"
-              className="inline-flex h-10 items-center justify-center rounded-[--radius] px-4 text-sm font-medium text-[--color-muted] hover:bg-[--color-surface-2] hover:text-[--color-foreground]"
+              className="inline-flex h-10 items-center justify-center rounded-(--radius) px-4 text-sm font-medium text-(--color-muted) hover:bg-(--color-surface-2) hover:text-(--color-foreground)"
             >
               ביטול
             </Link>
@@ -185,9 +185,9 @@ function Field({
 }) {
   return (
     <label className="grid gap-2 text-sm">
-      <span className="font-medium text-[--color-muted]">
+      <span className="font-medium text-(--color-muted)">
         {label}
-        {required && <span className="text-[--color-accent-red]"> *</span>}
+        {required && <span className="text-(--color-accent-red)"> *</span>}
       </span>
       {children}
     </label>

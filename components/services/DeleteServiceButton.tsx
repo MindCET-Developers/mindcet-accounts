@@ -26,7 +26,7 @@ export function DeleteServiceButton({
       <input type="hidden" name="serviceIds" value={serviceId} />
       <button
         type="submit"
-        className="size-8 grid place-items-center rounded-[--radius] text-[--color-muted] hover:text-[--color-accent-red] hover:bg-[--color-surface-2] transition-colors"
+        className="size-8 grid place-items-center rounded-(--radius) text-(--color-muted) hover:text-(--color-accent-red) hover:bg-(--color-surface-2) transition-colors"
         aria-label={`מחיקת ${serviceName}`}
       >
         <Trash2 className="size-4" />
