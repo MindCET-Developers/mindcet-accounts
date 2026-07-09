@@ -13,15 +13,15 @@ export default async function LoginPage({
       <div className="w-full max-w-md">
         <div className="mb-12 text-center">
           <div className="mb-6 inline-flex items-center gap-3">
-            <div className="size-12 rounded-2xl bg-gradient-brand grid place-items-center text-2xl">
+            <div className="size-12 rounded-2xl bg-[--color-surface] border border-[--color-border-soft] grid place-items-center text-2xl">
               💳
             </div>
           </div>
           <h1 className="text-4xl font-semibold tracking-tight mb-3">
-            <span className="text-gradient-brand">MindCET Accounts</span>
+            MindCET Accounts
           </h1>
           <p className="text-[--color-muted]">
-            ניהול שירותים, חשבונות ותשלומים <br />
+            מעקב הוצאות וחשבוניות <br />
             לכל הצוות, במקום אחד.
           </p>
         </div>
@@ -36,8 +36,7 @@ export default async function LoginPage({
           )}
 
           <p className="mt-6 text-xs text-center text-[--color-muted-2] leading-relaxed">
-            בכניסה הראשונה תידרש הרשאה לקריאת Gmail (לסריקת חשבוניות) <br />
-            ולכתיבת אירועי קלנדר (לתזכורות חידוש).
+            בכניסה הראשונה תידרש הרשאה לקריאת Gmail (לסריקת חשבוניות).
           </p>
         </div>
 

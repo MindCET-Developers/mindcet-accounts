@@ -8,7 +8,7 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         primary:
-          "bg-gradient-brand text-white shadow-[0_8px_24px_-12px_color-mix(in_oklab,var(--color-brand-500)_60%,transparent)] hover:shadow-[0_12px_32px_-12px_color-mix(in_oklab,var(--color-brand-500)_70%,transparent)] active:scale-[0.98]",
+          "bg-[--color-brand-600] text-white hover:bg-[--color-brand-700] active:scale-[0.98]",
         secondary:
           "surface-hover text-[--color-foreground] hover:surface-hover-active",
         ghost:
