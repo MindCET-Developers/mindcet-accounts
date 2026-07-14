@@ -1,8 +1,7 @@
-import { Audio } from "@remotion/media";
+import { Audio, Video } from "@remotion/media";
 import {
   AbsoluteFill,
   Easing,
-  Img,
   interpolate,
   spring,
   staticFile,
@@ -94,14 +93,15 @@ const PresenterVideo = () => {
         transform: `translateY(${fit(entrance, [0, 1], [70, 0])}px)`,
       }}
     >
-      <Img
-        src={staticFile("presenter/ran-magen.png")}
+      <Video
+        src={staticFile("presenter/presenter-talk.mp4")}
+        muted
+        objectFit="cover"
         style={{
           width: "100%",
           height: "100%",
-          objectFit: "cover",
           transform: `scale(${zoom}) rotate(${tilt}deg)`,
-          filter: "contrast(1.08) saturate(1.08) brightness(0.98)",
+          filter: "contrast(1.06) saturate(1.08) brightness(0.99)",
         }}
       />
       <div
@@ -289,14 +289,15 @@ const Background = () => {
         fontFamily: "'Segoe UI', Arial, 'Noto Sans Hebrew', sans-serif",
       }}
     >
-      <Img
-        src={staticFile("presenter/ran-magen.png")}
+      <Video
+        src={staticFile("presenter/presenter-talk.mp4")}
+        muted
+        objectFit="cover"
         style={{
           position: "absolute",
           inset: -60,
           width: 2040,
           height: 1200,
-          objectFit: "cover",
           opacity: 0.22,
           filter: "blur(22px) saturate(1.18) brightness(0.72)",
           transform: `scale(${1.18 + Math.sin(frame * 0.01) * 0.02})`,
@@ -351,7 +352,7 @@ export const MyComposition = () => {
 
   return (
     <AbsoluteFill>
-      <Audio src={staticFile("voiceover/hebrew-discovery.mp3")} />
+      <Audio src={staticFile("presenter/presenter-talk.mp4")} volume={1.8} />
       <Background />
       <PresenterVideo />
       <div
